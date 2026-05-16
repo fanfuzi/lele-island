@@ -1,0 +1,8 @@
+name = "lele-island"
+pages_build_output_dir = "dist"
+build_command = "npm run build"
+compatibility_date = "2025-05-01"
+
+# 环境变量（在这里声明，实际值通过 npx wrangler pages secret put 设置）
+[vars]
+# DEEPSEEK_API_KEY 请通过 npx wrangler pages secret put DEEPSEEK_API_KEY 来设置
