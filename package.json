@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "deploy": "vite build && gh-pages -d dist -m \"Deploy $(date)\"",
     "deploy:cf": "vite build && wrangler pages deploy dist --branch main",
+    "db:init": "wrangler d1 execute lele-island --file=server/schema.sql",
     "server": "node server/index.js",
     "dev:server": "node server/index.js"
   },
