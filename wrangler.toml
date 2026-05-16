@@ -1,7 +1,9 @@
 name = "lele-island"
-pages_build_output_dir = "dist"
-build_command = "npm run build"
 compatibility_date = "2025-05-01"
+
+[pages]
+build_command = "npm run build"
+build_output_dir = "dist"
 
 # D1 数据库（用于用户登录 + 云端存档）
 # 创建: npx wrangler d1 create lele-island
@@ -9,7 +11,7 @@ compatibility_date = "2025-05-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "lele-island"
-database_id = ""
+database_id = "231d737f-d792-45cb-83ac-84cdc0b71acb"
 
 # 环境变量
 [vars]
