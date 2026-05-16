@@ -158,6 +158,12 @@ export default function LoginScreen({ onLogin }) {
 
         <div className="login-footer">
           <p>💖 你的学习进度会自动保存在云端哦！</p>
+          <button
+            type="button"
+            className="link-btn"
+            style={{ marginTop: 8, fontSize: 13, opacity: 0.6 }}
+            onClick={() => onLogin({ username: 'local', displayName: '乐乐', tier: 'free' })}
+          >🏝️ 离线模式（不登录直接使用）</button>
         </div>
       </div>
     </div>
