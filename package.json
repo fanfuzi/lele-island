@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "vite build && gh-pages -d dist -m \"Deploy $(date)\"",
+    "deploy:cf": "vite build && wrangler pages deploy dist --branch main",
     "server": "node server/index.js",
     "dev:server": "node server/index.js"
   },

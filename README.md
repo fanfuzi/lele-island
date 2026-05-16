@@ -9,7 +9,7 @@
 | 框架 | React 18 + Vite |
 | 语言 | JSX (JavaScript) |
 | 状态管理 | React Context + useReducer |
-| 持久化 | localStorage |
+| 持久化 | localStorage + 可选云端同步 |
 | 路由 | state 驱动（无路由库） |
 | 语音 | Web Speech API (zh-HK) |
 | AI 出题 | 外部 API（`src/api.js`） |
@@ -95,15 +95,48 @@ npm run build
 
 ## 部署
 
-项目是纯静态 SPA，构建后 `dist/` 目录可部署到任何静态托管服务：
+### Cloudflare Pages（推荐）
 
-- **Vercel** / **Netlify** / **Cloudflare Pages** — 零配置
-- **GitHub Pages** — 构建后推送到 gh-pages 分支
+项目已配置好 Cloudflare Pages Functions，AI 功能开箱即用。
+
+**方式一：连接 GitHub 仓库（自动部署）**
+
+1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/) → Workers 和 Pages → Pages
+2. 点击「连接到 Git」→ 选择 `fanfuzi/lele-island`
+3. 构建设置：
+   - 框架预设：**Vite**
+   - 构建命令：`npm run build`
+   - 构建输出目录：`dist`
+4. 环境变量（用于 AI 功能）：
+   - `DEEPSEEK_API_KEY` = `sk-d99be362daee4f828717e1d182ae7973`
+5. 点击「保存并部署」
+
+**方式二：Wrangler CLI**
+
+```bash
+# 安装并登录
+npm install -g wrangler
+npx wrangler login
+
+# 部署
+npx wrangler pages deploy dist --branch main
+
+# 设置 AI API Key
+npx wrangler pages secret put DEEPSEEK_API_KEY
+# 输入: sk-d99be362daee4f828717e1d182ae7973
+```
+
+部署后访问 `https://lele-island.pages.dev` 即可使用。
+
+> AI 功能依赖 Deepseek API，确保在 Cloudflare Pages 环境变量中设置了 `DEEPSEEK_API_KEY`。不设置也不影响核心玩法，AI 功能会优雅降级。
+
+### 其他平台
+
+项目是纯静态 SPA，`dist/` 目录可部署到任何静态托管：
+
+- **Vercel / Netlify** — 零配置
+- **GitHub Pages** — `npm run deploy`
 - **Nginx / Apache / S3** — 直接托管 dist/ 目录
-
-### AI 出题功能
-
-如需 AI 出题（`src/api.js`），部署后需修改 API 地址指向你的后端服务。不配置也不影响核心玩法。
 
 ## 关键配置
 
