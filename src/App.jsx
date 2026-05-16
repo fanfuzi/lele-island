@@ -225,6 +225,42 @@ function AppContent() {
               <p className="settings-hint">内容会根据年级自动调整难度</p>
             </div>
 
+            <div className="settings-section">
+              <label className="settings-label">💾 数据迁移</label>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <button className="btn btn-small btn-secondary" onClick={() => {
+                  const data = localStorage.getItem('lele-island-data');
+                  if (!data) { alert('没有找到游戏数据'); return; }
+                  const blob = new Blob([data], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url; a.download = `lele-island-backup-${new Date().toISOString().slice(0, 10)}.json`;
+                  a.click(); URL.revokeObjectURL(url);
+                }} style={{ flex: 1, fontSize: 12, padding: '6px 4px' }}>
+                  📤 导出数据
+                </button>
+                <label className="btn btn-small btn-secondary" style={{ flex: 1, fontSize: 12, padding: '6px 4px', textAlign: 'center', cursor: 'pointer' }}>
+                  📥 导入数据
+                  <input type="file" accept=".json" style={{ display: 'none' }} onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      try {
+                        const data = JSON.parse(ev.target.result);
+                        if (!data.pet) { alert('无效的备份文件'); return; }
+                        localStorage.setItem('lele-island-data', JSON.stringify(data));
+                        alert('导入成功！即将刷新页面…');
+                        window.location.reload();
+                      } catch { alert('文件格式错误'); }
+                    };
+                    reader.readAsText(file);
+                  }} />
+                </label>
+              </div>
+              <p className="settings-hint">在旧域名导出 → 新域名导入，数据无缝迁移</p>
+            </div>
+
             <button className="btn btn-secondary" onClick={handleLogout} style={{ width: '100%', marginTop: 12 }}>
               退出登录
             </button>
