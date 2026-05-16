@@ -1,0 +1,453 @@
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
+
+const STORAGE_KEY = 'lele-island-data';
+
+const initialState = {
+  // 宠物
+  pet: {
+    type: 'cat',     // cat, dog, rabbit, hamster
+    name: '团子',
+    color: '#FFB5C2', // 粉色
+    accessories: [],  // 已穿戴的装备id
+    hunger: 80,       // 饱食度 0-100
+    happiness: 80,    // 心情 0-100
+    exp: 0,           // 经验值
+    level: 1,         // 等级
+  },
+  // 经济
+  coins: 0,
+  inventory: [],      // 已购买的道具id列表
+  // 进度
+  dailyProgress: {
+    date: '',
+    cantonese: { done: false, score: 0, questionsDone: 0 },
+    chinese: { done: false, score: 0, questionsDone: 0 },
+    math: { done: false, score: 0, questionsDone: 0 },
+    english: { done: false, score: 0, questionsDone: 0 },
+    gs: { done: false, score: 0, questionsDone: 0 },
+  },
+  streak: 0,           // 连续打卡天数
+  // 成就
+  achievements: [],
+  // 各科目学习记录
+  cantoneseUnlocked: 1,   // 已解锁的最大level
+  chineseUnlocked: 1,
+  mathUnlocked: 1,
+  englishUnlocked: 1,
+  gsUnlocked: 1,
+  // 用户年级 (小一 ~ 中三)
+  userGrade: 'p3',
+  // 战绩统计
+  stats: {
+    totalQuestions: 0,
+    correctAnswers: 0,
+    daysActive: 0,
+  },
+  // 错题记录
+  wrongRecords: {
+    math: [],
+    cantonese: [],
+    chinese: [],
+    english: [],
+    gs: [],
+  },
+  // 是否显示引导
+  showTutorial: true,
+  // 收藏的字（用于反复练习）
+  savedChars: [],
+  // 每个字今日练习次数（防刷星）
+  writtenCharCounts: {},
+  // 最后活跃时间（用于离线衰减计算）
+  lastActive: Date.now(),
+};
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // 合并默认值（防止新增字段缺失）
+      const merged = { ...initialState, ...parsed, dailyProgress: { ...initialState.dailyProgress, ...parsed.dailyProgress } };
+
+      // 离线衰减：根据时间流逝降低饱食度和心情
+      const now = Date.now();
+      const lastActive = merged.lastActive || now;
+      const hoursPassed = (now - lastActive) / (1000 * 60 * 60);
+      if (hoursPassed > 0.5) {
+        const decayPerHour = 5;
+        const decay = Math.min(100, Math.round(hoursPassed * decayPerHour));
+        merged.pet.hunger = Math.max(0, merged.pet.hunger - decay);
+        merged.pet.happiness = Math.max(0, merged.pet.happiness - decay);
+      }
+
+      merged.lastActive = now;
+      return merged;
+    }
+  } catch (e) {
+    console.warn('Failed to load state:', e);
+  }
+  return initialState;
+}
+
+function saveState(state) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn('Failed to save state:', e);
+  }
+}
+
+function gameReducer(state, action) {
+  switch (action.type) {
+    case 'INIT': {
+      if (!action.payload) return initialState;
+      return { ...initialState, ...action.payload };
+    }
+
+    case 'CHOOSE_PET': {
+      return { ...state, pet: { ...state.pet, type: action.payload.type, color: action.payload.color } };
+    }
+
+    case 'SET_PET_NAME': {
+      return { ...state, pet: { ...state.pet, name: action.payload } };
+    }
+
+    case 'FEED_PET': {
+      const newHunger = Math.min(100, state.pet.hunger + action.payload);
+      return { ...state, pet: { ...state.pet, hunger: newHunger }, lastActive: Date.now() };
+    }
+
+    case 'PLAY_WITH_PET': {
+      const newHappiness = Math.min(100, state.pet.happiness + action.payload);
+      return { ...state, pet: { ...state.pet, happiness: newHappiness }, lastActive: Date.now() };
+    }
+
+    case 'ADD_COINS': {
+      return { ...state, coins: state.coins + action.payload };
+    }
+
+    case 'SPEND_COINS': {
+      if (state.coins < action.payload) return state;
+      return { ...state, coins: state.coins - action.payload };
+    }
+
+    case 'BUY_ITEM': {
+      const item = action.payload;
+      if (state.coins < item.price) return state;
+      if (state.inventory.includes(item.id)) return state;
+      const newState = {
+        ...state,
+        coins: state.coins - item.price,
+        inventory: [...state.inventory, item.id],
+        lastActive: Date.now(),
+      };
+      // 食物类道具购买后自动喂养宠物
+      if (item.type === 'food') {
+        newState.pet = {
+          ...state.pet,
+          hunger: Math.min(100, state.pet.hunger + 15),
+          happiness: Math.min(100, state.pet.happiness + 5),
+        };
+      }
+      return newState;
+    }
+
+    case 'WEAR_ACCESSORY': {
+      const accId = action.payload;
+      const wearing = state.pet.accessories;
+      if (wearing.includes(accId)) {
+        return { ...state, pet: { ...state.pet, accessories: wearing.filter(id => id !== accId) }, lastActive: Date.now() };
+      }
+      return { ...state, pet: { ...state.pet, accessories: [...wearing, accId], happiness: Math.min(100, state.pet.happiness + 3) }, lastActive: Date.now() };
+    }
+
+    case 'COMPLETE_QUEST': {
+      const { subject, score, questionsDone } = action.payload;
+      const today = new Date().toDateString();
+      const wasAlreadyDone = state.dailyProgress.date === today &&
+        state.dailyProgress[subject].done;
+
+      const newProgress = {
+        ...state.dailyProgress,
+        date: today,
+        [subject]: { done: true, score, questionsDone },
+      };
+
+      // 检查是否三个都完成了
+      const allDone = ['cantonese', 'chinese', 'math'].every(
+        s => newProgress[s].done
+      );
+
+      const bonusCoins = allDone ? 10 : 0;
+      const newCoins = state.coins + score + bonusCoins;
+
+      // 经验值
+      const expGain = questionsDone * 5 + (score > 70 ? 10 : 0);
+      const newExp = state.pet.exp + expGain;
+      const newLevel = Math.floor(newExp / 100) + 1;
+
+      // 连续打卡
+      let newStreak = state.streak;
+      if (!wasAlreadyDone) {
+        if (state.dailyProgress.date !== today) {
+          const yesterday = new Date(Date.now() - 86400000).toDateString();
+          if (state.dailyProgress.date === yesterday) {
+            newStreak = state.streak + 1;
+          } else {
+            newStreak = 1;
+          }
+        }
+      }
+
+      // 成就检查
+      const newAchievements = [...state.achievements];
+      if (allDone && !newAchievements.includes('all-done')) {
+        newAchievements.push('all-done');
+      }
+      if (newStreak >= 7 && !newAchievements.includes('7day')) {
+        newAchievements.push('7day');
+      }
+      if (newLevel >= 3 && !newAchievements.includes('level3')) {
+        newAchievements.push('level3');
+      }
+
+      return {
+        ...state,
+        dailyProgress: newProgress,
+        coins: newCoins,
+        streak: newStreak,
+        achievements: newAchievements,
+        pet: {
+          ...state.pet,
+          exp: newExp,
+          level: newLevel,
+          happiness: Math.min(100, state.pet.happiness + 5),
+        },
+        stats: {
+          ...state.stats,
+          totalQuestions: state.stats.totalQuestions + questionsDone,
+          correctAnswers: state.stats.correctAnswers + Math.round(score / 100 * questionsDone),
+        },
+      };
+    }
+
+    case 'UNLOCK_LEVEL': {
+      const { subject, level } = action.payload;
+      const key = subject === 'cantonese' ? 'cantoneseUnlocked' :
+                  subject === 'chinese' ? 'chineseUnlocked' :
+                  subject === 'english' ? 'englishUnlocked' :
+                  subject === 'gs' ? 'gsUnlocked' : 'mathUnlocked';
+      if (level > state[key]) {
+        return { ...state, [key]: level };
+      }
+      return state;
+    }
+
+    case 'DISMISS_TUTORIAL': {
+      return { ...state, showTutorial: false };
+    }
+
+    case 'RESET_DAILY': {
+      const today = new Date().toDateString();
+      if (state.dailyProgress.date !== today) {
+        return {
+          ...state,
+          dailyProgress: { ...initialState.dailyProgress, date: today },
+        };
+      }
+      return state;
+    }
+
+    case 'SET_GRADE': {
+      const newGrade = action.payload;
+      const gradeConfig = GRADE_CONFIG.find(g => g.id === newGrade);
+      const gradeLevel = gradeConfig?.level || 2;
+      // 自动调整解锁等级以匹配年级
+      const minLevel = gradeLevel >= 3 ? 2 : 1;
+      return {
+        ...state,
+        userGrade: newGrade,
+        cantoneseUnlocked: Math.max(state.cantoneseUnlocked, minLevel),
+        chineseUnlocked: Math.max(state.chineseUnlocked, minLevel),
+        mathUnlocked: Math.max(state.mathUnlocked, minLevel),
+        englishUnlocked: Math.max(state.englishUnlocked, minLevel),
+        gsUnlocked: Math.max(state.gsUnlocked, minLevel),
+      };
+    }
+
+    case 'RECORD_STATS': {
+      const { correct, total } = action.payload;
+      return {
+        ...state,
+        stats: {
+          ...state.stats,
+          totalQuestions: state.stats.totalQuestions + total,
+          correctAnswers: state.stats.correctAnswers + correct,
+        },
+      };
+    }
+
+    case 'RECORD_WRONG_ANSWER': {
+      const { subject, category, questionId } = action.payload;
+      const records = state.wrongRecords[subject];
+      if (!records) return state;
+      // 避免重复记录同一题
+      if (records.some(r => r.questionId === questionId)) return state;
+      const newRecord = { category, questionId, timestamp: Date.now() };
+      return {
+        ...state,
+        wrongRecords: {
+          ...state.wrongRecords,
+          [subject]: [...records, newRecord],
+        },
+      };
+    }
+
+    case 'CLEAR_WRONG_RECORDS': {
+      const { subject, category } = action.payload;
+      if (!subject || !state.wrongRecords[subject]) return state;
+      if (category) {
+        return {
+          ...state,
+          wrongRecords: {
+            ...state.wrongRecords,
+            [subject]: state.wrongRecords[subject].filter(r => r.category !== category),
+          },
+        };
+      }
+      return {
+        ...state,
+        wrongRecords: { ...state.wrongRecords, [subject]: [] },
+      };
+    }
+
+    case 'SAVE_CHAR': {
+      const charId = action.payload;
+      if (state.savedChars.includes(charId)) {
+        return { ...state, savedChars: state.savedChars.filter(id => id !== charId) };
+      }
+      return { ...state, savedChars: [...state.savedChars, charId] };
+    }
+
+    case 'RECORD_WRITTEN_CHAR': {
+      const charId = action.payload;
+      const counts = { ...state.writtenCharCounts };
+      counts[charId] = (counts[charId] || 0) + 1;
+      return { ...state, writtenCharCounts: counts };
+    }
+
+    case 'RESET_WRITTEN_COUNTS': {
+      return { ...state, writtenCharCounts: {} };
+    }
+
+    case 'DECAY_PET': {
+      const decayAmount = action.payload?.hunger ?? 2;
+      return {
+        ...state,
+        pet: {
+          ...state.pet,
+          hunger: Math.max(0, state.pet.hunger - decayAmount),
+          happiness: Math.max(0, state.pet.happiness - decayAmount),
+        },
+        lastActive: Date.now(),
+      };
+    }
+
+    default:
+      return state;
+  }
+}
+
+const GameContext = createContext(null);
+
+export function GameProvider({ children }) {
+  const [state, dispatch] = useReducer(gameReducer, null, loadState);
+
+  // 自动保存
+  useEffect(() => {
+    if (state) saveState(state);
+  }, [state]);
+
+  // 每日重置检查
+  useEffect(() => {
+    if (state) {
+      dispatch({ type: 'RESET_DAILY' });
+    }
+  }, []);
+
+  // 在线衰减：每3分钟减少饱食度和心情（鼓励持续互动）
+  useEffect(() => {
+    if (!state) return;
+    const timer = setInterval(() => {
+      dispatch({ type: 'DECAY_PET', payload: { hunger: 2, happiness: 2 } });
+    }, 180000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <GameContext.Provider value={{ state, dispatch }}>
+      {children}
+    </GameContext.Provider>
+  );
+}
+
+export function useGame() {
+  const ctx = useContext(GameContext);
+  if (!ctx) throw new Error('useGame must be used within GameProvider');
+  return ctx;
+}
+
+// 辅助方法
+export function getPetEmoji(type) {
+  const emojis = { cat: '🐱', dog: '🐶', rabbit: '🐰', hamster: '🐹' };
+  return emojis[type] || '🐱';
+}
+
+// 年级配置（含新旧双级体系）
+const GRADE_CONFIG = [
+  { id: 'p1', label: '小一', level: 1, curriculumLevel: 1 },
+  { id: 'p2', label: '小二', level: 1, curriculumLevel: 2 },
+  { id: 'p3', label: '小三', level: 2, curriculumLevel: 3 },
+  { id: 'p4', label: '小四', level: 2, curriculumLevel: 4 },
+  { id: 'p5', label: '小五', level: 3, curriculumLevel: 5 },
+  { id: 'p6', label: '小六', level: 3, curriculumLevel: 6 },
+  { id: 'f1', label: '中一', level: 3, curriculumLevel: 7 },
+  { id: 'f2', label: '中二', level: 3, curriculumLevel: 8 },
+  { id: 'f3', label: '中三', level: 3, curriculumLevel: 9 },
+];
+
+export function getGradeLabel(gradeId) {
+  return GRADE_CONFIG.find(g => g.id === gradeId)?.label || '小三';
+}
+
+export function getGradeMaxLevel(gradeId) {
+  return GRADE_CONFIG.find(g => g.id === gradeId)?.level || 2;
+}
+
+// 获取年级对应的curriculumLevel（新9级体系）
+export function getCurriculumLevel(gradeId) {
+  return GRADE_CONFIG.find(g => g.id === gradeId)?.curriculumLevel || 3;
+}
+
+export function getGradeStartLevel(gradeId) {
+  const level = getGradeMaxLevel(gradeId);
+  return level >= 3 ? 2 : 1;
+}
+
+export function getAllGrades() {
+  return GRADE_CONFIG;
+}
+
+// 按curriculumLevel获取对应年级信息
+export function getGradeByCurriculumLevel(curriculumLevel) {
+  return GRADE_CONFIG.find(g => g.curriculumLevel === curriculumLevel);
+}
+
+// 根据表现获取宠物心情状态
+export function getPetMood(state) {
+  const { hunger, happiness } = state.pet;
+  if (hunger < 30) return 'hungry';
+  if (happiness < 30) return 'sad';
+  if (happiness > 80 && hunger > 80) return 'happy';
+  return 'normal';
+}
