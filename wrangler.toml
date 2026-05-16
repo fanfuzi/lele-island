@@ -3,6 +3,14 @@ pages_build_output_dir = "dist"
 build_command = "npm run build"
 compatibility_date = "2025-05-01"
 
-# 环境变量（在这里声明，实际值通过 npx wrangler pages secret put 设置）
+# D1 数据库（用于用户登录 + 云端存档）
+# 创建: npx wrangler d1 create lele-island
+# 把输出的 database_id 填到下方
+[[d1_databases]]
+binding = "DB"
+database_name = "lele-island"
+database_id = ""
+
+# 环境变量
 [vars]
-# DEEPSEEK_API_KEY 请通过 npx wrangler pages secret put DEEPSEEK_API_KEY 来设置
+# DEEPSEEK_API_KEY 通过 npx wrangler pages secret put DEEPSEEK_API_KEY 设置

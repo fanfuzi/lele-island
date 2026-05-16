@@ -97,38 +97,56 @@ npm run build
 
 ### Cloudflare Pages（推荐）
 
-项目已配置好 Cloudflare Pages Functions，AI 功能开箱即用。
+前后端全部署在 Cloudflare，无需额外服务器。
 
-**方式一：连接 GitHub 仓库（自动部署）**
-
-1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/) → Workers 和 Pages → Pages
-2. 点击「连接到 Git」→ 选择 `fanfuzi/lele-island`
-3. 构建设置：
-   - 框架预设：**Vite**
-   - 构建命令：`npm run build`
-   - 构建输出目录：`dist`
-4. 环境变量（用于 AI 功能）：
-   - `DEEPSEEK_API_KEY` = `sk-d99be362daee4f828717e1d182ae7973`
-5. 点击「保存并部署」
-
-**方式二：Wrangler CLI**
+#### 第一步：创建 D1 数据库（用于用户登录和云端存档）
 
 ```bash
-# 安装并登录
-npm install -g wrangler
-npx wrangler login
+npx wrangler d1 create lele-island
+```
 
-# 部署
+会输出一段内容，把其中的 `database_id` 复制下来，填到 `wrangler.toml` 中：
+
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "lele-island"
+database_id = "这里填你复制到的 database_id"
+```
+
+#### 第二步：初始化数据库表
+
+```bash
+npx wrangler d1 execute lele-island --file=server/schema.sql
+```
+
+#### 第三步：部署
+
+```bash
+# 构建
+npm run build
+
+# 部署到 Cloudflare Pages
 npx wrangler pages deploy dist --branch main
 
-# 设置 AI API Key
+# 设置 AI API Key（用于粤语对话、AI出题等功能）
 npx wrangler pages secret put DEEPSEEK_API_KEY
 # 输入: sk-d99be362daee4f828717e1d182ae7973
 ```
 
 部署后访问 `https://lele-island.pages.dev` 即可使用。
 
-> AI 功能依赖 Deepseek API，确保在 Cloudflare Pages 环境变量中设置了 `DEEPSEEK_API_KEY`。不设置也不影响核心玩法，AI 功能会优雅降级。
+> 不设置 D1 数据库也能用，会自动降级为离线模式（数据存在浏览器本地，无需登录）。AI 功能不设置 `DEEPSEEK_API_KEY` 也会自动降级，不影响核心游戏。
+
+#### 方式二：通过 Cloudflare Dashboard
+
+1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/) → Workers 和 Pages → Pages
+2. 点击「连接到 Git」→ 选择 `fanfuzi/lele-island`
+3. 构建设置：框架预设 **Vite**，构建命令 `npm run build`，输出目录 `dist`
+4. 部署完成后，在项目 Settings → **Functions** → **D1 database bindings** → 添加绑定：
+   - 变量名称：`DB`
+   - 数据库：选择你创建的 `lele-island`
+5. 在 Settings → **Environment variables** → 添加 `DEEPSEEK_API_KEY`
 
 ### 其他平台
 

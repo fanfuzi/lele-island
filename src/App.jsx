@@ -30,9 +30,11 @@ function AppContent() {
       // 先检测后端是否可用
       try {
         const healthRes = await fetch('/api/health', { method: 'GET', signal: AbortSignal.timeout(3000) });
-        if (!healthRes.ok) throw new Error('Backend unavailable');
+        const health = await healthRes.json();
+        // 没有 D1 数据库 → 自动降级离线
+        if (!health.db) throw new Error('No database');
       } catch {
-        // 后端不可用 → 离线模式（仅localStorage，无需登录）
+        // 后端不可用或无数据库 → 离线模式（仅localStorage，无需登录）
         setUser({ username: 'local', displayName: '乐乐', tier: 'free', grade: state.userGrade });
         setAuthLoading(false);
         return;
