@@ -1811,10 +1811,6 @@ body {
   font-size: 36px;
   animation: furnAppear 0.4s ease;
 }
-.room-furniture:nth-child(1) { bottom: 35%; left: 8%; }
-.room-furniture:nth-child(2) { bottom: 35%; right: 8%; }
-.room-furniture:nth-child(3) { bottom: 12%; left: 12%; }
-.room-furniture:nth-child(4) { bottom: 12%; right: 12%; }
 .room-furniture-icon { display: block; }
 @keyframes furnAppear {
   from { transform: scale(0); opacity: 0; }

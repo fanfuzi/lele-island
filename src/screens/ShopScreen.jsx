@@ -62,7 +62,7 @@ export default function ShopScreen({ onBack }) {
         {currentItems.map(item => {
           const owned = state.inventory.includes(item.id);
           const wearing = state.pet.accessories.includes(item.id);
-          const placed = state.furniture.includes(item.id);
+          const placed = state.furniture.some(f => f.id === item.id);
           const canAfford = balanceFor(item) >= item.price;
 
           let actionLabel = '购买';

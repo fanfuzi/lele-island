@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGame, getPetEmoji } from '../store';
 import { shopItems } from '../data/shopItems';
 import ProgressBar from '../components/ProgressBar';
@@ -22,6 +22,58 @@ export default function PetRoom({ onBack }) {
   const [showFurniture, setShowFurniture] = useState(false);
   const [nameInput, setNameInput] = useState(pet.name);
   const [petAction, setPetAction] = useState(null);
+  const [dragTarget, setDragTarget] = useState(null);
+  const [dragPos, setDragPos] = useState({});
+  const sceneRef = useRef(null);
+
+  // 家具拖动
+  function handleFurnitureStart(e, f) {
+    if (e.type === 'mousedown' && e.button !== 0) return;
+    e.preventDefault();
+    const touch = e.touches?.[0];
+    const rect = sceneRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setDragTarget({
+      id: f.id,
+      startX: (touch?.clientX || e.clientX),
+      startY: (touch?.clientY || e.clientY),
+      initX: f.x,
+      initY: f.y,
+      rect,
+    });
+  }
+
+  useEffect(() => {
+    if (!dragTarget) return;
+    function onMove(e) {
+      const touch = e.touches?.[0];
+      const clientX = touch?.clientX || e.clientX;
+      const clientY = touch?.clientY || e.clientY;
+      const dx = ((clientX - dragTarget.startX) / dragTarget.rect.width) * 100;
+      const dy = ((clientY - dragTarget.startY) / dragTarget.rect.height) * 100;
+      const newX = Math.max(5, Math.min(85, dragTarget.initX + dx));
+      const newY = Math.max(50, Math.min(90, dragTarget.initY + dy));
+      setDragPos({ [dragTarget.id]: { x: newX, y: newY } });
+    }
+    function onEnd() {
+      if (dragTarget) {
+        const pos = dragPos[dragTarget.id] || { x: dragTarget.initX, y: dragTarget.initY };
+        dispatch({ type: 'MOVE_FURNITURE', payload: { id: dragTarget.id, x: pos.x, y: pos.y } });
+      }
+      setDragTarget(null);
+      setDragPos({});
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onEnd);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+    };
+  }, [dragTarget]);
 
   function handleFeed() {
     if (state.coins < 2) return;
@@ -64,10 +116,11 @@ export default function PetRoom({ onBack }) {
 
   // 已购买的家具列表
   const ownedFurniture = shopItems.filter(i => i.type === 'furniture' && inventory.includes(i.id));
-  // 已摆放的家具
-  const placedFurniture = furniture.map(id => shopItems.find(i => i.id === id)).filter(Boolean);
-  // 用于房间展示的家具（最多4件）
-  const displayFurniture = placedFurniture.slice(0, 4);
+
+  // 获取家具显示位置（拖动中优先取 dragPos）
+  function getFurniturePos(f) {
+    return dragPos[f.id] || { x: f.x, y: f.y };
+  }
 
   return (
     <div className="screen">
@@ -81,16 +134,27 @@ export default function PetRoom({ onBack }) {
       </div>
 
       {/* 房间展示区 */}
-      <div className="pet-room-scene">
+      <div className="pet-room-scene" ref={sceneRef}>
         <div className="pet-room-wall" />
         <div className="pet-room-floor" />
 
-        {/* 房间家具 */}
-        {displayFurniture.map(item => (
-          <div key={item.id} className="room-furniture" style={{ '--furn-idx': placedFurniture.indexOf(item) }}>
-            <span className="room-furniture-icon">{item.icon}</span>
-          </div>
-        ))}
+        {/* 房间家具（可拖动） */}
+        {furniture.map(f => {
+          const item = shopItems.find(i => i.id === f.id);
+          if (!item) return null;
+          const pos = getFurniturePos(f);
+          return (
+            <div
+              key={f.id}
+              className={`room-furniture ${dragTarget?.id === f.id ? 'room-furniture-dragging' : ''}`}
+              style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+              onMouseDown={e => handleFurnitureStart(e, f)}
+              onTouchStart={e => handleFurnitureStart(e, f)}
+            >
+              <span className="room-furniture-icon">{item.icon}</span>
+            </div>
+          );
+        })}
 
         {/* 宠物 */}
         <div className="pet-room-avatar">

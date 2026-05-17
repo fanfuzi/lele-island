@@ -225,11 +225,32 @@ function gameReducer(state, action) {
     case 'PLACE_FURNITURE': {
       const furnId = action.payload;
       const placed = state.furniture;
-      if (placed.includes(furnId)) {
-        return { ...state, furniture: placed.filter(id => id !== furnId), lastActive: Date.now() };
+      const existing = placed.find(f => f.id === furnId);
+      if (existing) {
+        return { ...state, furniture: placed.filter(f => f.id !== furnId), lastActive: Date.now() };
       }
       if (placed.length >= 6) return state; // 最多放6件
-      return { ...state, furniture: [...placed, furnId], lastActive: Date.now() };
+      // 默认位置：分散摆放，避免重叠
+      const defaultPositions = [
+        { x: 15, y: 55 }, { x: 70, y: 55 },
+        { x: 10, y: 70 }, { x: 75, y: 70 },
+        { x: 40, y: 60 }, { x: 40, y: 75 },
+      ];
+      const pos = defaultPositions[placed.length] || { x: 30, y: 60 };
+      return {
+        ...state,
+        furniture: [...placed, { id: furnId, x: pos.x, y: pos.y }],
+        lastActive: Date.now(),
+      };
+    }
+
+    case 'MOVE_FURNITURE': {
+      const { id, x, y } = action.payload;
+      return {
+        ...state,
+        furniture: state.furniture.map(f => f.id === id ? { ...f, x, y } : f),
+        lastActive: Date.now(),
+      };
     }
 
     case 'COMPLETE_QUEST': {
@@ -251,8 +272,9 @@ function gameReducer(state, action) {
 
       const bonusCoins = allDone ? 10 : 0;
       const newCoins = state.coins + score + bonusCoins;
-      // 星级奖励（questionsDone 约 5-20 题，每做1题得1星，全部完成额外+3）
-      const starGain = Math.min(8, questionsDone) + (allDone ? 3 : 0);
+      // 星级奖励：10金币 = 1星，全部完成额外+1
+      const totalEarned = score + bonusCoins;
+      const starGain = Math.floor(totalEarned / 10) + (allDone ? 1 : 0);
       const newStars = state.stars + starGain;
 
       // 经验值
