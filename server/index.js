@@ -604,9 +604,9 @@ app.post('/api/ocr', async (req, res) => {
 
 // ===== AI 助教：作业诊断（核心引导式教学） =====
 app.post('/api/tutor/homework-diagnose', async (req, res) => {
-  const { textContent, subject, grade, wrongRecords, masteryData } = req.body;
+  const { textContent, imageData, mimeType, subject, grade, wrongRecords, masteryData } = req.body;
   if (!provider || !config?.apiKey) return res.json(null);
-  if (!textContent) return res.json({ error: '缺少作业内容' });
+  if (!textContent && !imageData) return res.json({ error: '缺少作业内容或图片' });
 
   const subjectName = { math: '数学', chinese: '汉字', cantonese: '粤语', english: '英文', gs: '常识' }[subject] || subject;
 
@@ -656,16 +656,26 @@ app.post('/api/tutor/homework-diagnose', async (req, res) => {
 - neat-draft: "把竖式重新写在草稿区，确保个位十位对齐"
 - common-sense: "算出的结果比题目给的数值还大/小？这合理吗？"`;
 
-  const userMsg = `学生年级：${grade}
+  const userMsgText = `学生年级：${grade}
 掌握的薄弱环节：${(wrongRecords || []).slice(0, 10).map(r => r.category).filter(Boolean).join('、') || '暂无记录'}
 掌握度数据：${JSON.stringify(masteryData || [])}
 
 作业内容：
-${textContent}
+${textContent || '（见上传图片）'}
 
 请分析这份作业中的错误，输出诊断 JSON。`;
 
-  const reply = await askAI(systemPrompt, userMsg, 1200);
+  let reply;
+  if (imageData && provider === 'anthropic') {
+    // 有图片且用 Claude → 直接视觉分析，不依赖 OCR
+    reply = await askClaude(systemPrompt, {
+      text: userMsgText,
+      image: imageData,
+      mimeType: mimeType || 'image/png',
+    }, 1200);
+  } else {
+    reply = await askAI(systemPrompt, userMsgText, 1200);
+  }
   if (!reply) return res.json(null);
 
   try {
@@ -682,9 +692,9 @@ ${textContent}
 
 // ===== AI 助教：自适应复习出题 =====
 app.post('/api/generate-review', async (req, res) => {
-  const { subject, grade, textbookContent, wrongTopics, masteryData, count = 5 } = req.body;
+  const { subject, grade, textbookContent, imageData, mimeType, wrongTopics, masteryData, count = 5 } = req.body;
   if (!provider || !config?.apiKey) return res.json({ questions: null });
-  if (!textbookContent) return res.json({ error: '缺少课本内容' });
+  if (!textbookContent && !imageData) return res.json({ error: '缺少课本内容或图片' });
 
   const subjectName = { math: '数学', chinese: '汉字', cantonese: '粤语', english: '英文', gs: '常识' }[subject] || subject;
 
@@ -725,8 +735,8 @@ app.post('/api/generate-review', async (req, res) => {
   ]
 }`;
 
-  const userMsg = `课本内容：
-${textbookContent}
+  const userMsgText = `课本内容：
+${textbookContent || '（见上传图片）'}
 
 学生年级：${grade}
 薄弱知识点（按优先级）：${allFocus.join('、') || '暂无记录'}
@@ -735,7 +745,17 @@ ${textbookContent}
 
 请出 ${count} 道 ${subjectName} 复习题，重点考察薄弱环节。`;
 
-  const reply = await askAI(systemPrompt, userMsg, 1500);
+  let reply;
+  if (imageData && provider === 'anthropic') {
+    // 有图片且用 Claude → 直接看课本图片出题
+    reply = await askClaude(systemPrompt, {
+      text: userMsgText,
+      image: imageData,
+      mimeType: mimeType || 'image/png',
+    }, 1500);
+  } else {
+    reply = await askAI(systemPrompt, userMsgText, 1500);
+  }
   if (!reply) return res.json({ questions: null });
 
   try {

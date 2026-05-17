@@ -72,17 +72,17 @@ export async function generateAITemplates(grade, topic, genre = 'computation', c
 }
 
 // AI 作业诊断（助教模式）
-export async function homeworkDiagnose({ textContent, imageData, subject, grade, wrongRecords, masteryData }) {
+export async function homeworkDiagnose({ textContent, imageData, mimeType, subject, grade, wrongRecords, masteryData }) {
   const res = await fetchAPI('/tutor/homework-diagnose', {
-    textContent, imageData, subject, grade, wrongRecords, masteryData,
+    textContent, imageData, mimeType, subject, grade, wrongRecords, masteryData,
   });
   return res || null;
 }
 
 // AI 自适应复习出题
-export async function generateReview({ subject, grade, textbookContent, imageData, wrongTopics, masteryData, count = 5 }) {
+export async function generateReview({ subject, grade, textbookContent, imageData, mimeType, wrongTopics, masteryData, count = 5 }) {
   const res = await fetchAPI('/generate-review', {
-    subject, grade, textbookContent, imageData, wrongTopics, masteryData, count,
+    subject, grade, textbookContent, imageData, mimeType, wrongTopics, masteryData, count,
   });
   return res || null;
 }

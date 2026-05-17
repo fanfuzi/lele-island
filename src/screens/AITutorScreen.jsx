@@ -47,6 +47,9 @@ export default function AITutorScreen({ onBack, preset }) {
   const [ocrProgress, setOcrProgress] = useState(0);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [diagnosis, setDiagnosis] = useState(null);
+  const [imageData, setImageData] = useState(null);    // 图片 base64（直传 AI 分析）
+  const [imageMimeType, setImageMimeType] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [currentGuidanceIndex, setCurrentGuidanceIndex] = useState(0);
   const [habitChallenge, setHabitChallenge] = useState(null);
   const [habitDone, setHabitDone] = useState(false);
@@ -93,9 +96,31 @@ export default function AITutorScreen({ onBack, preset }) {
     }
   }, [preset]);
 
-  // ===== 图片上传 + OCR =====
+  // 图片转 base64
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ===== 图片上传 + OCR（保留 OCR 作为兜底）=====
   async function handleImageUpload(file) {
     if (!file) return;
+
+    // 保存图片数据用于直接 AI 分析
+    try {
+      const dataUrl = await fileToBase64(file);
+      setImageData(dataUrl.split(',')[1]);
+      setImageMimeType(file.type || 'image/png');
+      setImagePreview(dataUrl);
+    } catch (e) {
+      console.warn('Image base64 failed:', e.message);
+    }
+
+    // OCR 提取文字（作为辅助/兜底）
     setOcrLoading(true);
     setOcrProgress(0);
     setOcrText('');
@@ -106,8 +131,11 @@ export default function AITutorScreen({ onBack, preset }) {
         setOcrText(text);
         setInputText(text);
       } else {
+        // OCR 失败没关系，图片直传 AI 分析仍然有效
         setOcrText('');
-        setDiagnosisError('未能识别出有效文字，请手动粘贴内容');
+        if (!imageData) {
+          setDiagnosisError('未能识别出有效文字，请手动粘贴内容');
+        }
       }
     } catch (e) {
       setDiagnosisError('图片识别失败: ' + e.message);
@@ -118,8 +146,12 @@ export default function AITutorScreen({ onBack, preset }) {
   // ===== 提交作业诊断 =====
   async function handleDiagnose() {
     const content = inputText.trim();
-    if (!content || content.length < 10) {
-      setDiagnosisError('请输入或上传至少 10 个字的作业内容');
+    if (!content && !imageData) {
+      setDiagnosisError('请拍照或输入作业内容');
+      return;
+    }
+    if (content && content.length < 5 && !imageData) {
+      setDiagnosisError('请输入或上传至少 5 个字的作业内容');
       return;
     }
 
@@ -135,6 +167,8 @@ export default function AITutorScreen({ onBack, preset }) {
 
       const result = await homeworkDiagnose({
         textContent: content,
+        imageData: imageData || undefined,
+        mimeType: imageMimeType || undefined,
         subject,
         grade,
         wrongRecords: state.wrongRecords[subject] || [],
@@ -170,7 +204,11 @@ export default function AITutorScreen({ onBack, preset }) {
   // ===== 提交复习出题 =====
   async function handleGenerateReview(overrideContent, overrideSubject) {
     const content = (overrideContent || reviewContent).trim();
-    if (!content || content.length < 10) {
+    if (!content && !imageData) {
+      setReviewError('请拍照或输入课本内容');
+      return;
+    }
+    if (content && content.length < 10 && !imageData) {
       setReviewError('请输入至少 10 个字的课本内容');
       return;
     }
@@ -192,6 +230,8 @@ export default function AITutorScreen({ onBack, preset }) {
         subject: subj,
         grade,
         textbookContent: content,
+        imageData: imageData || undefined,
+        mimeType: imageMimeType || undefined,
         wrongTopics,
         masteryData,
         count: 5,
@@ -304,6 +344,8 @@ export default function AITutorScreen({ onBack, preset }) {
     setHabitDone(false);
     setInputText('');
     setOcrText('');
+    setImageData(null);
+    setImagePreview(null);
     setDiagnosisError('');
   }
 
@@ -313,6 +355,8 @@ export default function AITutorScreen({ onBack, preset }) {
     setStep('mode-select');
     setReviewQuestions(null);
     setReviewContent('');
+    setImageData(null);
+    setImagePreview(null);
   }
 
   // ===== 渲染：科目选择 =====
@@ -399,7 +443,14 @@ export default function AITutorScreen({ onBack, preset }) {
                 style={{ display: 'none' }}
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); }}
               />
-              {ocrLoading ? (
+              {imagePreview ? (
+                <div className="review-image-preview">
+                  <img src={imagePreview} alt="上传的图片" className="review-image" />
+                  <button className="btn btn-small btn-secondary review-image-clear" onClick={(e) => { e.stopPropagation(); setImageData(null); setImagePreview(null); }}>
+                    重新拍照
+                  </button>
+                </div>
+              ) : ocrLoading ? (
                 <div className="review-ocr-loading">
                   <div className="review-ocr-spinner">📷</div>
                   <p>识别中... {ocrProgress}%</p>
@@ -411,12 +462,12 @@ export default function AITutorScreen({ onBack, preset }) {
                 <div className="review-upload-hint">
                   <span className="review-upload-icon">📷</span>
                   <span>拍照上传作业</span>
-                  <span className="review-upload-sub">或点击选择图片</span>
+                  <span className="review-upload-sub">AI 直接分析图片，无需 OCR</span>
                 </div>
               )}
             </div>
 
-            {ocrText && (
+            {!imagePreview && ocrText && (
               <div className="review-ocr-preview">
                 <div className="review-ocr-preview-header">
                   <span>📝 识别结果（可编辑）</span>
@@ -458,7 +509,7 @@ export default function AITutorScreen({ onBack, preset }) {
             <button
               className="btn btn-primary tutor-submit-btn"
               onClick={handleDiagnose}
-              disabled={loading || inputText.trim().length < 10}
+              disabled={loading || (inputText.trim().length < 5 && !imageData)}
             >
               {loading ? '🔍 AI 诊断中...' : '🔍 开始诊断'}
             </button>
@@ -608,12 +659,41 @@ export default function AITutorScreen({ onBack, preset }) {
         </div>
         <PetCompanion mood={petMood} statusText={petStatus} interactive gazeTracking />
         <div className="tutor-content">
+          {/* 拍照上传课本内页 */}
+          <div className="review-upload-area" onClick={() => fileInputRef.current?.click()}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              style={{ display: 'none' }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); }}
+            />
+            {imagePreview ? (
+              <div className="review-image-preview">
+                <img src={imagePreview} alt="课本图片" className="review-image" />
+                <button className="btn btn-small btn-secondary review-image-clear" onClick={(e) => { e.stopPropagation(); setImageData(null); setImagePreview(null); }}>
+                  重新拍照
+                </button>
+              </div>
+            ) : (
+              <div className="review-upload-hint">
+                <span className="review-upload-icon">📷</span>
+                <span>拍照上传课本内页</span>
+                <span className="review-upload-sub">AI 直接看图片出题，无需打字</span>
+              </div>
+            )}
+          </div>
+
+          <div className="tutor-divider">
+            <span>或粘贴课本内容</span>
+          </div>
           <textarea
             className="review-textarea"
             placeholder={`粘贴${subjectInfo.label}课本内容或知识点...\n例如：分数加减法，同分母分数相加，分母不变，分子相加...`}
             value={reviewContent}
             onChange={e => setReviewContent(e.target.value)}
-            rows={8}
+            rows={6}
           />
 
           {/* 薄弱环节提示 */}
@@ -637,7 +717,7 @@ export default function AITutorScreen({ onBack, preset }) {
           <button
             className="btn btn-primary tutor-submit-btn"
             onClick={handleGenerateReview}
-            disabled={reviewLoading || reviewContent.trim().length < 10}
+            disabled={reviewLoading || (reviewContent.trim().length < 10 && !imageData)}
           >
             {reviewLoading ? '🤖 AI 正在出题...' : '📝 开始复习'}
           </button>
