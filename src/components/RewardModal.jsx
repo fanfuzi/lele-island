@@ -2,10 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import PetCompanion from './PetCompanion';
 import ConfettiEffect from './ConfettiEffect';
 
-export default function RewardModal({ show, coins, message, onClose, score, total, petReaction }) {
+export default function RewardModal({ show, coins, stars, message, onClose, score, total, petReaction }) {
   const audioCtxRef = useRef(null);
   const [animStep, setAnimStep] = useState('start');
   const [displayCoins, setDisplayCoins] = useState(0);
+
+  // 星星奖励计算（每题1星，上限8，与 store 中 COMPLETE_QUEST 一致）
+  const starEarned = stars !== undefined ? stars : Math.min(8, total || 0);
 
   // 分数档次
   const pct = total > 0 ? Math.round((score / total) * 100) : 100;
@@ -103,10 +106,18 @@ export default function RewardModal({ show, coins, message, onClose, score, tota
           </div>
         )}
 
-        {/* 金币 */}
-        <div className={`reward-coins ${animStep === 'show-coins' || animStep === 'complete' ? 'reward-coins-show' : ''}`}>
-          <span className="coin-icon">⭐</span>
-          <span className="coin-amount">+{displayCoins}</span>
+        {/* 奖励 */}
+        <div className="reward-currencies">
+          <div className={`reward-currency-item ${animStep === 'show-coins' || animStep === 'complete' ? 'reward-coins-show' : ''}`}>
+            <span className="coin-icon">🪙</span>
+            <span className="coin-amount">+{displayCoins}</span>
+            <span className="reward-currency-label">金币</span>
+          </div>
+          <div className={`reward-currency-item ${animStep === 'complete' ? 'reward-coins-show' : ''}`}>
+            <span className="coin-icon">🌟</span>
+            <span className="coin-amount">+{starEarned}</span>
+            <span className="reward-currency-label">星星</span>
+          </div>
         </div>
 
         {/* 鼓励语 */}
