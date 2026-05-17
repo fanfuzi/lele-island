@@ -39,6 +39,11 @@ export default function ShopScreen({ onBack }) {
         </div>
       </div>
 
+      <div className="shop-balance-bar">
+        <span>🪙 余额 <strong>{state.coins}</strong></span>
+        <span>🌟 余额 <strong>{state.stars}</strong></span>
+      </div>
+
       {/* 分类Tab */}
       <div className="shop-tabs">
         {shopCategories.map(c => (
@@ -98,8 +103,8 @@ export default function ShopScreen({ onBack }) {
       </div>
 
       <div className="shop-currency-hint">
-        <span>🪙 金币：做练习获得（买食物）</span>
-        <span>🌟 星星：高分和连击获得（买装饰）</span>
+        <span>🪙 金币：每做一题获得（买食物）</span>
+        <span>🌟 星星：每题1★ + 全科完成额外奖励（买服装/家具）</span>
       </div>
     </div>
   );

@@ -86,6 +86,14 @@ function loadState() {
       // 合并默认值（防止新增字段缺失）
       const merged = { ...initialState, ...parsed, dailyProgress: { ...initialState.dailyProgress, ...parsed.dailyProgress } };
 
+      // 深度合并 pet 对象，确保新属性（energy/health/cleanliness）不被旧存档覆盖
+      merged.pet = { ...initialState.pet, ...parsed.pet };
+
+      // 旧用户（已有宠物）赠送 5 星启动金
+      if (parsed.pet && parsed.pet.type && !('stars' in parsed)) {
+        merged.stars = 5;
+      }
+
       // 离线衰减：根据时间流逝降低各项属性
       const now = Date.now();
       const lastActive = merged.lastActive || now;
@@ -243,8 +251,8 @@ function gameReducer(state, action) {
 
       const bonusCoins = allDone ? 10 : 0;
       const newCoins = state.coins + score + bonusCoins;
-      // 星级奖励（score 约 2-12，每3分1星，全部完成额外+2）
-      const starGain = Math.max(1, Math.floor(score / 3)) + (allDone ? 2 : 0);
+      // 星级奖励（questionsDone 约 5-20 题，每做1题得1星，全部完成额外+3）
+      const starGain = Math.min(8, questionsDone) + (allDone ? 3 : 0);
       const newStars = state.stars + starGain;
 
       // 经验值

@@ -1920,18 +1920,30 @@ body {
   font-size: 14px;
   font-weight: 700;
 }
-.header-currency { white-space: nowrap; }
+.header-currency { white-space: nowrap; display: flex; align-items: center; gap: 2px; }
+.shop-balance-bar {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  background: white;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+.shop-balance-bar strong { font-size: 16px; }
 .shop-currency-hint {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 12px 14px;
   margin-top: 12px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-light);
-  background: #f8f4f8;
+  background: #FFF8E1;
+  border: 1px solid #FFE082;
   border-radius: var(--radius-sm);
-  text-align: center;
 }
 
 /* ===== Upgraded Reward Modal ===== */
