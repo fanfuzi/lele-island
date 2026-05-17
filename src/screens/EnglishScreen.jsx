@@ -12,7 +12,6 @@ import { getCurriculumLevel, GRADE_MAP } from '../data/curriculum/curriculumMap'
 const GAMES = [
   { id: 'quiz', label: '英文闯关', icon: '🎯' },
   { id: 'fill', label: '拼写练习', icon: '✏️' },
-  { id: 'review', label: 'AI 复习', icon: '📖', review: true },
   { id: 'order', label: '句子排序', icon: '🔤' },
   { id: 'generated', label: '无限练习', icon: '♾️' },
 ];
@@ -151,7 +150,7 @@ export default function EnglishScreen({ onBack }) {
       </div>
       <div className="game-select-list">
         {GAMES.map(g => (
-          <button key={g.id} className={`game-select-card ${g.review ? 'game-review' : ''}`} onClick={() => g.review ? onNavigate?.('tutor', 'english') : setGameMode(g.id)}>
+          <button key={g.id} className="game-select-card" onClick={() => setGameMode(g.id)}>
             <span className="game-select-icon">{g.icon}</span>
             <span className="game-select-label">{g.label}</span>
             <span className="game-select-arrow">→</span>

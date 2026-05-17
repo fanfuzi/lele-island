@@ -298,6 +298,56 @@ body {
 }
 .quick-btn:hover { background: var(--yellow-light); }
 
+/* ===== AI 助教入口（首页） ===== */
+.home-tutor-section {
+  padding: 0 16px;
+}
+.home-tutor-card {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #f0e6ff, #e8f4ff);
+  border: 2px solid #d4bfff;
+  border-radius: var(--radius);
+  cursor: pointer;
+  gap: 12px;
+  transition: all 0.2s;
+  font-family: var(--font);
+}
+.home-tutor-card:hover {
+  border-color: #b388ff;
+  box-shadow: 0 2px 12px rgba(179, 136, 255, 0.2);
+}
+.home-tutor-icon {
+  font-size: 28px;
+}
+.home-tutor-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+.home-tutor-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #5e35b1;
+}
+.home-tutor-desc {
+  font-size: 12px;
+  color: #7e57c2;
+  margin-top: 2px;
+}
+.home-tutor-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: #7e57c2;
+  color: white;
+  letter-spacing: 0.5px;
+}
+
 /* ===== Bottom Nav ===== */
 .bottom-nav {
   display: flex;

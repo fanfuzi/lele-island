@@ -19,7 +19,6 @@ import { getCurriculumLevel, GRADE_MAP } from '../data/curriculum/curriculumMap'
 const GAMES = [
   { id: 'speed', label: '口算快抢', icon: '⚡' },
   { id: 'quiz', label: '数学闯关', icon: '🎯' },
-  { id: 'tutor', label: 'AI 助教', icon: '🧑‍🏫', ai: true },
   { id: 'fill', label: '填空计算', icon: '✏️' },
   { id: 'generated', label: '无限练习', icon: '♾️' },
   { id: 'order', label: '数字排序', icon: '🔢' },
@@ -30,7 +29,7 @@ const GAMES = [
   { id: 'comprehensive', label: '综合练习', icon: '📝' },
 ];
 
-export default function MathScreen({ onBack, onNavigate }) {
+export default function MathScreen({ onBack }) {
   const { state, dispatch } = useGame();
   const [gameMode, setGameMode] = useState(null);
   const [showReward, setShowReward] = useState(false);
@@ -611,17 +610,15 @@ export default function MathScreen({ onBack, onNavigate }) {
         {GAMES.map(g => (
           <button
             key={g.id}
-            className={`game-select-card ${g.ai ? 'game-ai' : ''} ${g.id === 'tutor' ? 'game-tutor' : ''}`}
+            className={`game-select-card ${g.ai ? 'game-ai' : ''}`}
             onClick={() => {
-              if (g.id === 'tutor') onNavigate?.('tutor', 'math');
-              else if (g.ai) handleAiQuiz();
+              if (g.ai) handleAiQuiz();
               else setGameMode(g.id);
             }}
           >
             <span className="game-select-icon">{g.icon}</span>
             <span className="game-select-label">{g.label}</span>
             {g.ai && <span className="ai-badge">AI</span>}
-            {g.id === 'tutor' && <span className="ai-badge">助教</span>}
             <span className="game-select-arrow">→</span>
           </button>
         ))}

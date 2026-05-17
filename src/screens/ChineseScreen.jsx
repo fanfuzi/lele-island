@@ -16,14 +16,13 @@ import { logActivity } from '../utils/activityLog';
 const GAMES = [
   { id: 'match', label: '字卡配对', icon: '🀄' },
   { id: 'write', label: '写字练习', icon: '✏️' },
-  { id: 'review', label: 'AI 复习', icon: '📖', review: true },
   { id: 'grid', label: '记忆翻牌', icon: '🎴' },
   { id: 'order', label: '笔画排序', icon: '🔢' },
   { id: 'sort', label: '部首分类', icon: '📂' },
   { id: 'ai-practice', label: 'AI智能练字', icon: '🤖', ai: true },
 ];
 
-export default function ChineseScreen({ onBack, onNavigate }) {
+export default function ChineseScreen({ onBack }) {
   const { state, dispatch } = useGame();
   const [gameMode, setGameMode] = useState(null);
   const [showReward, setShowReward] = useState(false);
@@ -607,8 +606,7 @@ export default function ChineseScreen({ onBack, onNavigate }) {
             key={g.id}
             className={`game-select-card ${g.ai ? 'game-ai' : ''}`}
             onClick={() => {
-              if (g.review) onNavigate?.('tutor', 'chinese');
-              else if (g.id === 'write') {
+              if (g.id === 'write') {
                 setGameMode('write');
                 if (writeMode === 'dictation' && availableChars.length > 0) {
                   const randomChar = availableChars[Math.floor(Math.random() * availableChars.length)];

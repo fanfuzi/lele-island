@@ -84,6 +84,19 @@ export default function HomeScreen({ onNavigate }) {
           📊 成就
         </button>
       </div>
+
+      {/* AI 助教入口 */}
+      <div className="home-tutor-section">
+        <button className="home-tutor-card" onClick={() => onNavigate('tutor')}>
+          <span className="home-tutor-icon">🧑‍🏫</span>
+          <span className="home-tutor-info">
+            <span className="home-tutor-title">AI 助教</span>
+            <span className="home-tutor-desc">作业诊断 + 智能复习</span>
+          </span>
+          <span className="home-tutor-badge">AI</span>
+          <span className="game-select-arrow">→</span>
+        </button>
+      </div>
     </div>
   );
 }

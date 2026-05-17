@@ -30,7 +30,6 @@ function AppContent() {
   const [parentPassword, setParentPassword] = useState('');
   const [parentLoading, setParentLoading] = useState(false);
   const [parentError, setParentError] = useState('');
-  const [tutorSubject, setTutorSubject] = useState('math');
 
   // 启动时检查登录状态
   useEffect(() => {
@@ -179,15 +178,15 @@ function AppContent() {
         {screen === 'home' && <HomeScreen onNavigate={setScreen} />}
         {screen === 'cantonese' && <CantoneseScreen onBack={() => setScreen('home')} onNavigate={setScreen} />}
         {screen === 'chinese' && <ChineseScreen onBack={() => setScreen('home')} onNavigate={setScreen} />}
-        {screen === 'math' && <MathScreen onBack={() => setScreen('home')} onNavigate={(s, subj) => { if (subj) setTutorSubject(subj); setScreen(s); }} />}
-        {screen === 'english' && <EnglishScreen onBack={() => setScreen('home')} onNavigate={(s, subj) => { if (subj) setTutorSubject(subj); setScreen(s); }} />}
-        {screen === 'gs' && <GSScreen onBack={() => setScreen('home')} onNavigate={(s, subj) => { if (subj) setTutorSubject(subj); setScreen(s); }} />}
+        {screen === 'math' && <MathScreen onBack={() => setScreen('home')} />}
+        {screen === 'english' && <EnglishScreen onBack={() => setScreen('home')} />}
+        {screen === 'gs' && <GSScreen onBack={() => setScreen('home')} />}
         {screen === 'pet-room' && <PetRoom onBack={() => setScreen('home')} />}
         {screen === 'shop' && <ShopScreen onBack={() => setScreen('home')} />}
         {screen === 'stats' && <StatsScreen onBack={() => setScreen('home')} />}
         {screen === 'ai-chat' && <AIChatScreen onBack={() => setScreen('home')} />}
         {screen === 'parent' && <ParentDashboard onBack={() => setScreen('home')} />}
-        {screen === 'tutor' && <AITutorScreen onBack={() => setScreen('home')} subject={tutorSubject} />}
+        {screen === 'tutor' && <AITutorScreen onBack={() => setScreen('home')} />}
       </main>
       <nav className="bottom-nav bottom-nav-scroll">
         {[
@@ -197,6 +196,7 @@ function AppContent() {
           { key: 'math', icon: '🔢', label: '数学' },
           { key: 'english', icon: '🔤', label: '英文' },
           { key: 'gs', icon: '🌍', label: '常识' },
+          { key: 'tutor', icon: '🧑‍🏫', label: 'AI助教' },
           { key: 'pet-room', icon: '🏠', label: '宠物' },
         ].map(tab => (
           <button
