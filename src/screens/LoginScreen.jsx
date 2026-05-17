@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { login, register } from '../api/auth';
-import { getAllGrades } from '../store';
+import { getAllGrades, getPetEmoji } from '../store';
 
+const PET_TYPES = ['cat', 'dog', 'rabbit', 'hamster', 'fox', 'panda'];
 const GREETINGS = ['🌟 欢迎来到乐乐小岛！', '🌈 和团子一起学习吧！', '🎠 在这里快乐成长！', '🦋 每一天都是新的冒险！'];
 
 export default function LoginScreen({ onLogin }) {
@@ -13,6 +14,7 @@ export default function LoginScreen({ onLogin }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [greeting] = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
+  const loginPetType = useMemo(() => PET_TYPES[Math.floor(Math.random() * PET_TYPES.length)], []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -57,7 +59,7 @@ export default function LoginScreen({ onLogin }) {
         {/* 宠物和欢迎语 */}
         <div className="login-welcome">
           <div className="login-pet">
-            <span className="login-pet-body">🐱</span>
+            <span className="login-pet-body">{getPetEmoji(loginPetType)}</span>
             <span className="login-pet-hand left">🤚</span>
             <span className="login-pet-hand right">🤚</span>
           </div>

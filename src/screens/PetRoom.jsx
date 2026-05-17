@@ -22,62 +22,56 @@ export default function PetRoom({ onBack }) {
   const [showFurniture, setShowFurniture] = useState(false);
   const [nameInput, setNameInput] = useState(pet.name);
   const [petAction, setPetAction] = useState(null);
-  const [dragTarget, setDragTarget] = useState(null);
   const [dragPos, setDragPos] = useState({});
-  const dragPosRef = useRef({});
+  const dragRef = useRef(null);
   const sceneRef = useRef(null);
 
-  // 家具拖动
+  // 家具拖动（全部用 ref 避免闭包过期问题）
   function handleFurnitureStart(e, f) {
     if (e.type === 'mousedown' && e.button !== 0) return;
     e.preventDefault();
     const touch = e.touches?.[0];
     const rect = sceneRef.current?.getBoundingClientRect();
     if (!rect) return;
-    setDragTarget({
-      id: f.id,
-      startX: (touch?.clientX || e.clientX),
-      startY: (touch?.clientY || e.clientY),
-      initX: f.x,
-      initY: f.y,
-      rect,
-    });
-  }
-
-  useEffect(() => {
-    if (!dragTarget) return;
-    function onMove(e) {
-      const touch = e.touches?.[0];
-      const clientX = touch?.clientX || e.clientX;
-      const clientY = touch?.clientY || e.clientY;
-      const dx = ((clientX - dragTarget.startX) / dragTarget.rect.width) * 100;
-      const dy = ((clientY - dragTarget.startY) / dragTarget.rect.height) * 100;
-      const newX = Math.max(5, Math.min(85, dragTarget.initX + dx));
-      const newY = Math.max(50, Math.min(90, dragTarget.initY + dy));
-      const pos = { x: newX, y: newY };
-      dragPosRef.current = { [dragTarget.id]: pos };
-      setDragPos(dragPosRef.current);
-    }
-    function onEnd() {
-      if (dragTarget) {
-        const pos = dragPosRef.current[dragTarget.id] || { x: dragTarget.initX, y: dragTarget.initY };
-        dispatch({ type: 'MOVE_FURNITURE', payload: { id: dragTarget.id, x: pos.x, y: pos.y } });
+    const clientX = touch?.clientX || e.clientX;
+    const clientY = touch?.clientY || e.clientY;
+    const pos = { x: f.x, y: f.y };
+    dragRef.current = {
+      id: f.id, startX: clientX, startY: clientY,
+      initX: f.x, initY: f.y, rect,
+      pos, // 实时位置，onEnd 从这里读取
+    };
+    // 直接绑定 window 事件，避免 useEffect 延迟
+    const onMove = (e) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const t = e.touches?.[0];
+      const cx = t?.clientX || e.clientX;
+      const cy = t?.clientY || e.clientY;
+      const dx = ((cx - d.startX) / d.rect.width) * 100;
+      const dy = ((cy - d.startY) / d.rect.height) * 100;
+      const x = Math.max(5, Math.min(85, d.initX + dx));
+      const y = Math.max(50, Math.min(90, d.initY + dy));
+      d.pos = { x, y };
+      setDragPos({ [d.id]: { x, y } });
+    };
+    const onEnd = () => {
+      const d = dragRef.current;
+      if (d) {
+        dispatch({ type: 'MOVE_FURNITURE', payload: { id: d.id, x: d.pos.x, y: d.pos.y } });
       }
-      setDragTarget(null);
+      dragRef.current = null;
       setDragPos({});
-      dragPosRef.current = {};
-    }
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onEnd);
-    window.addEventListener('touchmove', onMove, { passive: false });
-    window.addEventListener('touchend', onEnd);
-    return () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onEnd);
       window.removeEventListener('touchmove', onMove);
       window.removeEventListener('touchend', onEnd);
     };
-  }, [dragTarget]);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd);
+  }
 
   function handleFeed() {
     if (state.coins < 2) return;
@@ -150,7 +144,7 @@ export default function PetRoom({ onBack }) {
           return (
             <div
               key={f.id}
-              className={`room-furniture ${dragTarget?.id === f.id ? 'room-furniture-dragging' : ''}`}
+              className={`room-furniture ${dragRef.current?.id === f.id ? 'room-furniture-dragging' : ''}`}
               style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
               onMouseDown={e => handleFurnitureStart(e, f)}
               onTouchStart={e => handleFurnitureStart(e, f)}
