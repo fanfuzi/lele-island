@@ -277,13 +277,15 @@ export function getDailyReviewTasks() {
       .map(([key, meta]) => {
         const subj = subjects[key];
         const topic = subj.topic || '';
-        const isExam = topic.includes('考試') || topic.includes('假期');
+        const isExam = topic === '考試週';
+        const isHoliday = topic.includes('假期') || topic.includes('暑期');
         const isReview = topic.includes('複習') || topic.includes('回饋');
         return {
           ...meta,
           topic: subj.topic || '',
           desc: subj.desc || '',
           isExam,
+          isHoliday,
           isReview,
         };
       }),

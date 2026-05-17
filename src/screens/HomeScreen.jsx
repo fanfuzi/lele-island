@@ -54,7 +54,7 @@ export default function HomeScreen({ onNavigate }) {
           <span className="daily-review-title">今日複習</span>
         </div>
         <div className="daily-review-grid">
-          {tasks.filter(t => !t.isExam && !t.topic.includes('假期') && !t.topic.includes('暑期')).map(task => (
+          {tasks.filter(t => !t.isExam && !t.isHoliday).map(task => (
             <button
               key={task.id}
               className="daily-review-card"
