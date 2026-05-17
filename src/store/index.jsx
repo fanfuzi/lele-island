@@ -11,12 +11,17 @@ const initialState = {
     accessories: [],  // 已穿戴的装备id
     hunger: 80,       // 饱食度 0-100
     happiness: 80,    // 心情 0-100
+    energy: 80,       // 活力 0-100
+    health: 80,       // 健康 0-100
+    cleanliness: 80,  // 清洁度 0-100
     exp: 0,           // 经验值
     level: 1,         // 等级
   },
   // 经济
   coins: 0,
+  stars: 0,
   inventory: [],      // 已购买的道具id列表
+  furniture: [],      // 已摆放的家具id列表
   // 进度
   dailyProgress: {
     date: '',
@@ -81,7 +86,7 @@ function loadState() {
       // 合并默认值（防止新增字段缺失）
       const merged = { ...initialState, ...parsed, dailyProgress: { ...initialState.dailyProgress, ...parsed.dailyProgress } };
 
-      // 离线衰减：根据时间流逝降低饱食度和心情
+      // 离线衰减：根据时间流逝降低各项属性
       const now = Date.now();
       const lastActive = merged.lastActive || now;
       const hoursPassed = (now - lastActive) / (1000 * 60 * 60);
@@ -90,6 +95,11 @@ function loadState() {
         const decay = Math.min(100, Math.round(hoursPassed * decayPerHour));
         merged.pet.hunger = Math.max(0, merged.pet.hunger - decay);
         merged.pet.happiness = Math.max(0, merged.pet.happiness - decay);
+        // 新属性离线衰减（幅度减半）
+        const lightDecay = Math.min(50, Math.round(hoursPassed * 2.5));
+        merged.pet.energy = Math.max(0, (merged.pet.energy || 80) - lightDecay);
+        merged.pet.cleanliness = Math.max(0, (merged.pet.cleanliness || 80) - lightDecay);
+        merged.pet.health = Math.max(0, (merged.pet.health || 80) - Math.round(lightDecay / 2));
       }
 
       merged.lastActive = now;
@@ -143,16 +153,34 @@ function gameReducer(state, action) {
       return { ...state, coins: state.coins - action.payload };
     }
 
+    case 'ADD_STARS': {
+      return { ...state, stars: state.stars + action.payload };
+    }
+
+    case 'SPEND_STARS': {
+      if (state.stars < action.payload) return state;
+      return { ...state, stars: state.stars - action.payload };
+    }
+
     case 'BUY_ITEM': {
       const item = action.payload;
-      if (state.coins < item.price) return state;
+      const currency = item.priceType || 'coins';
+      if (currency === 'stars') {
+        if (state.stars < item.price) return state;
+      } else {
+        if (state.coins < item.price) return state;
+      }
       if (state.inventory.includes(item.id)) return state;
       const newState = {
         ...state,
-        coins: state.coins - item.price,
         inventory: [...state.inventory, item.id],
         lastActive: Date.now(),
       };
+      if (currency === 'stars') {
+        newState.stars = state.stars - item.price;
+      } else {
+        newState.coins = state.coins - item.price;
+      }
       // 食物类道具购买后自动喂养宠物
       if (item.type === 'food') {
         newState.pet = {
@@ -171,6 +199,25 @@ function gameReducer(state, action) {
         return { ...state, pet: { ...state.pet, accessories: wearing.filter(id => id !== accId) }, lastActive: Date.now() };
       }
       return { ...state, pet: { ...state.pet, accessories: [...wearing, accId], happiness: Math.min(100, state.pet.happiness + 3) }, lastActive: Date.now() };
+    }
+
+    case 'CLEAN_PET': {
+      const amount = action.payload || 20;
+      return {
+        ...state,
+        pet: { ...state.pet, cleanliness: Math.min(100, state.pet.cleanliness + amount) },
+        lastActive: Date.now(),
+      };
+    }
+
+    case 'PLACE_FURNITURE': {
+      const furnId = action.payload;
+      const placed = state.furniture;
+      if (placed.includes(furnId)) {
+        return { ...state, furniture: placed.filter(id => id !== furnId), lastActive: Date.now() };
+      }
+      if (placed.length >= 6) return state; // 最多放6件
+      return { ...state, furniture: [...placed, furnId], lastActive: Date.now() };
     }
 
     case 'COMPLETE_QUEST': {
@@ -192,6 +239,9 @@ function gameReducer(state, action) {
 
       const bonusCoins = allDone ? 10 : 0;
       const newCoins = state.coins + score + bonusCoins;
+      // 星级奖励（score 约 2-12，每3分1星，全部完成额外+2）
+      const starGain = Math.max(1, Math.floor(score / 3)) + (allDone ? 2 : 0);
+      const newStars = state.stars + starGain;
 
       // 经验值
       const expGain = questionsDone * 5 + (score > 70 ? 10 : 0);
@@ -227,6 +277,7 @@ function gameReducer(state, action) {
         ...state,
         dailyProgress: newProgress,
         coins: newCoins,
+        stars: newStars,
         streak: newStreak,
         achievements: newAchievements,
         pet: {
@@ -353,13 +404,18 @@ function gameReducer(state, action) {
     }
 
     case 'DECAY_PET': {
-      const decayAmount = action.payload?.hunger ?? 2;
+      const hungerDecay = action.payload?.hunger ?? 2;
+      const happinessDecay = action.payload?.happiness ?? 2;
+      const cleanDecay = action.payload?.cleanliness ?? 1;
       return {
         ...state,
         pet: {
           ...state.pet,
-          hunger: Math.max(0, state.pet.hunger - decayAmount),
-          happiness: Math.max(0, state.pet.happiness - decayAmount),
+          hunger: Math.max(0, state.pet.hunger - hungerDecay),
+          happiness: Math.max(0, state.pet.happiness - happinessDecay),
+          energy: Math.max(0, (state.pet.energy || 80) - Math.round(hungerDecay / 2)),
+          health: Math.max(0, (state.pet.health || 80) - (hungerDecay > 2 ? 1 : 0)),
+          cleanliness: Math.max(0, (state.pet.cleanliness || 80) - cleanDecay),
         },
         lastActive: Date.now(),
       };
@@ -485,9 +541,11 @@ export function getGradeByCurriculumLevel(curriculumLevel) {
 
 // 根据表现获取宠物心情状态
 export function getPetMood(state) {
-  const { hunger, happiness } = state.pet;
+  const { hunger, happiness, cleanliness, health, energy } = state.pet;
   if (hunger < 30) return 'hungry';
   if (happiness < 30) return 'sad';
-  if (happiness > 80 && hunger > 80) return 'happy';
+  if ((cleanliness || 80) < 30) return 'sad';
+  if ((health || 80) < 30) return 'sad';
+  if (happiness > 80 && hunger > 80 && (cleanliness || 80) > 60 && (energy || 80) > 50) return 'happy';
   return 'normal';
 }

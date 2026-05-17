@@ -14,9 +14,10 @@ const PET_TYPES = [
 
 export default function PetRoom({ onBack }) {
   const { state, dispatch } = useGame();
-  const { pet, inventory } = state;
+  const { pet, inventory, furniture } = state;
   const [showCustomize, setShowCustomize] = useState(false);
   const [showNameEdit, setShowNameEdit] = useState(false);
+  const [showFurniture, setShowFurniture] = useState(false);
   const [nameInput, setNameInput] = useState(pet.name);
   const [petAction, setPetAction] = useState(null);
 
@@ -36,6 +37,13 @@ export default function PetRoom({ onBack }) {
     setTimeout(() => setPetAction(null), 2000);
   }
 
+  function handleClean() {
+    dispatch({ type: 'CLEAN_PET', payload: 25 });
+    setPetAction('cleaning');
+    logActivity({ type: 'pet', subject: null, gameType: 'clean' });
+    setTimeout(() => setPetAction(null), 2000);
+  }
+
   function handlePetChange(newType) {
     dispatch({ type: 'CHOOSE_PET', payload: { type: newType.type, color: newType.color } });
     setShowCustomize(false);
@@ -49,18 +57,40 @@ export default function PetRoom({ onBack }) {
   }
 
   const actionStatus = petAction === 'eating' ? '正在吃东西…好吃！😋' :
-    petAction === 'playing' ? '玩得好开心！🎾' : '';
+    petAction === 'playing' ? '玩得好开心！🎾' :
+    petAction === 'cleaning' ? '洗香香～🧼' : '';
+
+  // 已购买的家具列表
+  const ownedFurniture = shopItems.filter(i => i.type === 'furniture' && inventory.includes(i.id));
+  // 已摆放的家具
+  const placedFurniture = furniture.map(id => shopItems.find(i => i.id === id)).filter(Boolean);
+  // 用于房间展示的家具（最多4件）
+  const displayFurniture = placedFurniture.slice(0, 4);
 
   return (
     <div className="screen">
       <div className="screen-header">
         <button className="btn-back" onClick={onBack}>← 主页</button>
         <h2>🏠 宠物屋</h2>
-        <div />
+        <div className="header-coins">
+          <span style={{ marginRight: 8 }}>⭐ {state.coins}</span>
+          <span>🌟 {state.stars}</span>
+        </div>
       </div>
 
-      {/* 宠物展示 */}
-      <div className="pet-showcase">
+      {/* 房间展示区 */}
+      <div className="pet-room-scene">
+        <div className="pet-room-wall" />
+        <div className="pet-room-floor" />
+
+        {/* 房间家具 */}
+        {displayFurniture.map(item => (
+          <div key={item.id} className="room-furniture" style={{ '--furn-idx': placedFurniture.indexOf(item) }}>
+            <span className="room-furniture-icon">{item.icon}</span>
+          </div>
+        ))}
+
+        {/* 宠物 */}
         <div className="pet-room-avatar">
           <PetCompanion
             size="large"
@@ -70,43 +100,55 @@ export default function PetRoom({ onBack }) {
             interactive voiceEnabled gazeTracking
           />
         </div>
-
-        <div className="pet-details">
-          {showNameEdit ? (
-            <div className="name-edit">
-              <input
-                type="text"
-                value={nameInput}
-                onChange={e => setNameInput(e.target.value)}
-                className="name-input"
-                maxLength={10}
-              />
-              <button className="btn btn-primary btn-small" onClick={handleNameSave}>保存</button>
-            </div>
-          ) : (
-            <h2 className="pet-name-display" onClick={() => setShowNameEdit(true)}>
-              {pet.name} ✏️
-            </h2>
-          )}
-          <ProgressBar />
-        </div>
       </div>
 
-      {/* 状态条 */}
-      <div className="pet-stats">
-        <div className="pet-stat">
-          <span className="stat-label">🍽️ 饱食度</span>
-          <div className="stat-bar">
-            <div className="stat-fill stat-fill-hunger" style={{ width: `${pet.hunger}%` }} />
+      {/* 宠物名字 + 等级 */}
+      <div className="pet-details">
+        {showNameEdit ? (
+          <div className="name-edit">
+            <input
+              type="text"
+              value={nameInput}
+              onChange={e => setNameInput(e.target.value)}
+              className="name-input"
+              maxLength={10}
+            />
+            <button className="btn btn-primary btn-small" onClick={handleNameSave}>保存</button>
           </div>
-          <span className="stat-value">{pet.hunger}%</span>
+        ) : (
+          <h2 className="pet-name-display" onClick={() => setShowNameEdit(true)}>
+            {getPetEmoji(pet.type)} {pet.name} ✏️
+          </h2>
+        )}
+        <span className="pet-level-badge">Lv.{pet.level}</span>
+      </div>
+
+      {/* 属性条 */}
+      <div className="pet-stats-grid">
+        <div className="pet-stat-row">
+          <span className="stat-label">🍽️ 饱食</span>
+          <div className="stat-bar-sm"><div className="stat-fill fill-pink" style={{ width: `${pet.hunger}%` }} /></div>
+          <span className="stat-value">{pet.hunger}</span>
         </div>
-        <div className="pet-stat">
+        <div className="pet-stat-row">
           <span className="stat-label">😊 心情</span>
-          <div className="stat-bar">
-            <div className="stat-fill stat-fill-happy" style={{ width: `${pet.happiness}%` }} />
-          </div>
-          <span className="stat-value">{pet.happiness}%</span>
+          <div className="stat-bar-sm"><div className="stat-fill fill-orange" style={{ width: `${pet.happiness}%` }} /></div>
+          <span className="stat-value">{pet.happiness}</span>
+        </div>
+        <div className="pet-stat-row">
+          <span className="stat-label">⚡ 活力</span>
+          <div className="stat-bar-sm"><div className="stat-fill fill-yellow" style={{ width: `${pet.energy || 80}%` }} /></div>
+          <span className="stat-value">{pet.energy || 80}</span>
+        </div>
+        <div className="pet-stat-row">
+          <span className="stat-label">❤️ 健康</span>
+          <div className="stat-bar-sm"><div className="stat-fill fill-green" style={{ width: `${pet.health || 80}%` }} /></div>
+          <span className="stat-value">{pet.health || 80}</span>
+        </div>
+        <div className="pet-stat-row">
+          <span className="stat-label">🧼 清洁</span>
+          <div className="stat-bar-sm"><div className="stat-fill fill-blue" style={{ width: `${pet.cleanliness || 80}%` }} /></div>
+          <span className="stat-value">{pet.cleanliness || 80}</span>
         </div>
       </div>
 
@@ -118,15 +160,51 @@ export default function PetRoom({ onBack }) {
         <button className="action-btn" onClick={handlePlay}>
           🎾 玩耍
         </button>
-        <button className="action-btn" onClick={() => setShowCustomize(!showCustomize)}>
-          🎨 换装
+        <button className="action-btn" onClick={handleClean} disabled={pet.cleanliness >= 95}>
+          🧼 清洁
+        </button>
+        <button className="action-btn" onClick={() => setShowFurniture(!showFurniture)}>
+          🛋️ 家具
         </button>
       </div>
 
+      {/* 家具摆放面板 */}
+      {showFurniture && (
+        <div className="furniture-panel">
+          <h3>🛋️ 摆放家具（最多6件）</h3>
+          <div className="furniture-grid">
+            {ownedFurniture.length === 0 ? (
+              <p className="empty-hint">还没有家具，去商店买一些吧！</p>
+            ) : (
+              ownedFurniture.map(item => {
+                const isPlaced = furniture.includes(item.id);
+                return (
+                  <button
+                    key={item.id}
+                    className={`furniture-btn ${isPlaced ? 'placed' : ''}`}
+                    onClick={() => dispatch({ type: 'PLACE_FURNITURE', payload: item.id })}
+                  >
+                    <span className="furniture-btn-icon">{item.icon}</span>
+                    <span className="furniture-btn-name">{item.name}</span>
+                    <span className="furniture-btn-status">{isPlaced ? '已摆放' : '点击摆放'}</span>
+                  </button>
+                );
+              })
+            )}
+            {placedFurniture.length >= 6 && <p className="empty-hint">房间摆满了！（最多6件）</p>}
+          </div>
+        </div>
+      )}
+
       {/* 换装面板 */}
+      <div className="customize-toggle">
+        <button className={`action-btn action-btn-wide ${showCustomize ? 'active' : ''}`} onClick={() => setShowCustomize(!showCustomize)}>
+          🎨 换装
+        </button>
+      </div>
       {showCustomize && (
         <div className="customize-panel">
-          <h3>选择宠物</h3>
+          <h3>选择宠物种类</h3>
           <div className="pet-type-grid">
             {PET_TYPES.map(p => (
               <button

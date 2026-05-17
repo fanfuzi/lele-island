@@ -98,38 +98,38 @@ function renderAccessory(accId) {
     case 19:
       return (
         <g key={accId} className="accessory-back">
-          <path d="M32,62 Q60,56 88,62 L94,104 Q60,112 26,104 Z" fill="#7E57C2" opacity="0.55" />
+          <path d="M32,62 Q60,56 88,62 L94,148 Q60,156 26,148 Z" fill="#7E57C2" opacity="0.55" />
           <path d="M36,62 Q60,58 84,62" fill="none" stroke="#5E35B1" strokeWidth="1.5" />
         </g>
       );
     case 21:
       return (
         <g key={accId}>
-          <rect x="16" y="76" width="14" height="11" rx="3" fill="#FFD700" />
-          <rect x="18" y="78" width="10" height="7" rx="2" fill="white" />
-          <line x1="19" y1="76" x2="19" y2="70" stroke="#FFD700" strokeWidth="2" />
-          <line x1="27" y1="76" x2="27" y2="70" stroke="#FFD700" strokeWidth="2" />
-          <circle cx="23" cy="81" r="1.5" fill="#333" />
+          <rect x="34" y="100" width="14" height="11" rx="3" fill="#FFD700" />
+          <rect x="36" y="102" width="10" height="7" rx="2" fill="white" />
+          <line x1="37" y1="100" x2="37" y2="94" stroke="#FFD700" strokeWidth="2" />
+          <line x1="45" y1="100" x2="45" y2="94" stroke="#FFD700" strokeWidth="2" />
+          <circle cx="41" cy="105" r="1.5" fill="#333" />
         </g>
       );
     case 24:
       return (
         <g key={accId}>
-          <rect x="88" y="78" width="12" height="7" rx="3" fill="#FF8A65" />
+          <rect x="88" y="102" width="12" height="7" rx="3" fill="#FF8A65" />
           {[90, 94, 98].map((x, i) => (
-            <circle key={i} cx={x} cy="81" r="1.5" fill="#FFAB91" />
+            <circle key={i} cx={x} cy="105" r="1.5" fill="#FFAB91" />
           ))}
         </g>
       );
     case 20:
       return (
         <g key={accId}>
-          <ellipse cx="42" cy="97" rx="11" ry="5" fill="#42A5F5" />
-          <rect x="33" y="93" width="18" height="4" rx="2" fill="#1E88E5" />
-          <line x1="36" y1="93" x2="38" y2="88" stroke="#1E88E5" strokeWidth="1.5" />
-          <ellipse cx="78" cy="97" rx="11" ry="5" fill="#42A5F5" />
-          <rect x="69" y="93" width="18" height="4" rx="2" fill="#1E88E5" />
-          <line x1="72" y1="93" x2="74" y2="88" stroke="#1E88E5" strokeWidth="1.5" />
+          <ellipse cx="38" cy="158" rx="11" ry="6" fill="#42A5F5" />
+          <rect x="29" y="154" width="18" height="4" rx="2" fill="#1E88E5" />
+          <line x1="32" y1="154" x2="34" y2="148" stroke="#1E88E5" strokeWidth="1.5" />
+          <ellipse cx="82" cy="158" rx="11" ry="6" fill="#42A5F5" />
+          <rect x="73" y="154" width="18" height="4" rx="2" fill="#1E88E5" />
+          <line x1="76" y1="154" x2="78" y2="148" stroke="#1E88E5" strokeWidth="1.5" />
         </g>
       );
     default:
@@ -249,7 +249,7 @@ function PetSprite({ type, color, mood = 'normal', celebrating = false, accessor
   ) : null;
 
   return (
-    <svg width={size} height={size} viewBox="0 0 120 120"
+    <svg width={size} height={size * 1.5} viewBox="0 0 120 180"
       className={`pet-sprite ${celebrating ? 'pet-celebrating' : ''} ${spriteClass}`}
     >
       {/* 庆祝粒子 */}
@@ -267,13 +267,41 @@ function PetSprite({ type, color, mood = 'normal', celebrating = false, accessor
       {/* 身体 */}
       <ellipse cx="60" cy="85" rx="32" ry="20" fill={color} opacity="0.7" stroke="#00000010" strokeWidth="1" />
 
-      {/* 身体配件 */}
-      {bodyAccs.map(renderAccessory)}
-
-      {/* 脚 */}
+      {/* 上半身脚 (保留作为过渡) */}
       <ellipse cx="42" cy="95" rx="10" ry="6" fill={color} opacity="0.8" />
       <ellipse cx="78" cy="95" rx="10" ry="6" fill={color} opacity="0.8" />
+
+      {/* 下半身 */}
+      <ellipse cx="60" cy="110" rx="34" ry="24" fill={color} opacity="0.65" stroke="#00000008" strokeWidth="1" />
+      <ellipse cx="60" cy="132" rx="28" ry="18" fill={color} opacity="0.6" stroke="#00000008" strokeWidth="1" />
+
+      {/* 后腿 */}
+      <ellipse cx="28" cy="145" rx="18" ry="16" fill={color} opacity="0.75" />
+      <ellipse cx="92" cy="145" rx="18" ry="16" fill={color} opacity="0.75" />
+      <ellipse cx="24" cy="160" rx="12" ry="8" fill={color} opacity="0.8" />
+      <ellipse cx="96" cy="160" rx="12" ry="8" fill={color} opacity="0.8" />
+
+      {/* 前腿（延伸到脚掌） */}
+      <rect x="36" y="96" width="12" height="60" rx="6" fill={color} opacity="0.75" />
+      <rect x="72" y="96" width="12" height="60" rx="6" fill={color} opacity="0.75" />
+
+      {/* 脚掌 */}
+      <ellipse cx="42" cy="158" rx="10" ry="6" fill={color} opacity="0.9" />
+      <ellipse cx="78" cy="158" rx="10" ry="6" fill={color} opacity="0.9" />
+
+      {/* 脚部配件（鞋子） */}
       {footAccs.map(renderAccessory)}
+
+      {/* 尾巴 */}
+      {(type === 'cat' || type === 'dog') && (
+        <path d="M90,130 Q112,120 108,100 Q106,88 112,82" fill="none" stroke={color} strokeWidth="7" strokeLinecap="round" opacity="0.7" />
+      )}
+      {type === 'rabbit' && (
+        <ellipse cx="60" cy="160" rx="10" ry="8" fill={color} opacity="0.6" />
+      )}
+
+      {/* 身体配件（在躯干和腿之上） */}
+      {bodyAccs.map(renderAccessory)}
 
       {/* 耳朵 */}
       {ears}
