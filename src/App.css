@@ -1810,8 +1810,19 @@ body {
   z-index: 1;
   font-size: 36px;
   animation: furnAppear 0.4s ease;
+  cursor: grab;
+  touch-action: none;
+  transition: transform 0.15s ease, filter 0.15s ease;
 }
-.room-furniture-icon { display: block; }
+.room-furniture:hover { transform: scale(1.15); filter: brightness(1.1); }
+.room-furniture:active { cursor: grabbing; }
+.room-furniture-dragging {
+  z-index: 10;
+  transform: scale(1.25) !important;
+  filter: brightness(1.15) drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+  transition: none;
+}
+.room-furniture-icon { display: block; pointer-events: none; }
 @keyframes furnAppear {
   from { transform: scale(0); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
