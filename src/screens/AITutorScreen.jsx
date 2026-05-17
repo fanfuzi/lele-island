@@ -78,16 +78,18 @@ export default function AITutorScreen({ onBack, preset }) {
       if (!info) return;
       setSubject(s);
       setMode('review');
+      // 构造类似课本内容的描述，让 AI 据此出题
       const prompt = [
-        `請根據以下課題出複習題：`,
-        `科目：${info.label}`,
-        `課題：${preset.topic}`,
-        preset.desc ? `說明：${preset.desc}` : '',
-      ].filter(Boolean).join('\n');
+        `【${info.label} · 三年級】${preset.topic}`,
+        '',
+        preset.desc || '鞏固練習',
+        '',
+        '請根據以上內容出複習題，題型包括選擇題和應用題，適合三年級學生。',
+      ].join('\n');
       setReviewContent(prompt);
       setStep('review:input');
-      // 自动触发出题
-      setTimeout(() => handleGenerateReview(prompt), 300);
+      // 自动触发出题（传 subject 避免闭包捕获旧值）
+      setTimeout(() => handleGenerateReview(prompt, s), 300);
     }
   }, [preset]);
 
@@ -166,7 +168,7 @@ export default function AITutorScreen({ onBack, preset }) {
   }
 
   // ===== 提交复习出题 =====
-  async function handleGenerateReview(overrideContent) {
+  async function handleGenerateReview(overrideContent, overrideSubject) {
     const content = (overrideContent || reviewContent).trim();
     if (!content || content.length < 10) {
       setReviewError('请输入至少 10 个字的课本内容');
@@ -174,17 +176,20 @@ export default function AITutorScreen({ onBack, preset }) {
     }
     if (!overrideContent) setReviewContent(content);
 
+    // 用传入的 subject 避免闭包捕获旧值
+    const subj = overrideSubject || subject;
+
     setReviewLoading(true);
     setReviewError('');
 
     try {
-      const wrongTopics = [...new Set((state.wrongRecords[subject] || []).map(r => r.category).filter(Boolean))];
-      const masteryData = Object.entries(state.mastery[subject] || {}).map(([topic, data]) => ({
+      const wrongTopics = [...new Set((state.wrongRecords[subj] || []).map(r => r.category).filter(Boolean))];
+      const masteryData = Object.entries(state.mastery[subj] || {}).map(([topic, data]) => ({
         topic, level: data.level, total: data.total,
       }));
 
       const result = await generateReview({
-        subject,
+        subject: subj,
         grade,
         textbookContent: content,
         wrongTopics,
