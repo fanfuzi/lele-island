@@ -5,6 +5,7 @@ import TaskList from '../components/TaskList';
 import ProgressBar from '../components/ProgressBar';
 import { logActivity } from '../utils/activityLog';
 import { speakPet } from '../utils/speech';
+import { getDailyReviewTasks, isChinesePlaceholder } from '../data/curriculum/hk-p3-calendar';
 
 const zones = [
   { key: 'cantonese', label: '粤语区', icon: '🗣️', color: '#FF9EAA', desc: '和团子一起学粤语' },
@@ -18,6 +19,9 @@ export default function HomeScreen({ onNavigate }) {
   const today = new Date().toDateString();
   const isNewDay = dailyProgress.date !== today;
   const petMood = getPetMood(state);
+
+  // 教学日历
+  const { week, tasks } = getDailyReviewTasks();
 
   // 欢迎语音
   useEffect(() => {
@@ -41,6 +45,32 @@ export default function HomeScreen({ onNavigate }) {
       {/* 宠物区域 */}
       <div className="home-pet-section">
         <PetCompanion size="large" showLevel interactive voiceEnabled idleDetection gazeTracking />
+      </div>
+
+      {/* 今日复习（教学日历同步） */}
+      <div className="daily-review-section">
+        <div className="daily-review-header">
+          <span className="daily-review-week">📅 第 {week} 週</span>
+          <span className="daily-review-title">今日複習</span>
+        </div>
+        <div className="daily-review-grid">
+          {tasks.filter(t => !t.isExam && !t.topic.includes('假期') && !t.topic.includes('暑期')).map(task => (
+            <button
+              key={task.id}
+              className="daily-review-card"
+              style={{ '--card-color': task.color }}
+              onClick={() => onNavigate('tutor', { subject: task.id, topic: task.topic, desc: task.desc })}
+            >
+              <span className="daily-review-card-icon">{task.icon}</span>
+              <span className="daily-review-card-subject">{task.label}</span>
+              <span className="daily-review-card-topic">{task.topic.replace(/\(.*\)/, '')}</span>
+              <span className="daily-review-card-arrow">→</span>
+            </button>
+          ))}
+        </div>
+        {tasks.some(t => t.isExam) && (
+          <div className="daily-review-exam-notice">📌 本週為考試週，加油！</div>
+        )}
       </div>
 
       {/* 今日任务 */}

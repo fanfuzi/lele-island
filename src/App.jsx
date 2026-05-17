@@ -30,6 +30,17 @@ function AppContent() {
   const [parentPassword, setParentPassword] = useState('');
   const [parentLoading, setParentLoading] = useState(false);
   const [parentError, setParentError] = useState('');
+  const [reviewPreset, setReviewPreset] = useState(null);
+
+  // 导航处理（支援预设参数）
+  function handleNavigate(screen, params) {
+    if (screen === 'tutor' && params?.subject) {
+      setReviewPreset(params);
+    } else {
+      setReviewPreset(null);
+    }
+    setScreen(screen);
+  }
 
   // 启动时检查登录状态
   useEffect(() => {
@@ -175,7 +186,7 @@ function AppContent() {
     <div className="app">
       <Header user={user} onSettings={() => setShowSettings(true)} />
       <main className="main-content">
-        {screen === 'home' && <HomeScreen onNavigate={setScreen} />}
+        {screen === 'home' && <HomeScreen onNavigate={handleNavigate} />}
         {screen === 'cantonese' && <CantoneseScreen onBack={() => setScreen('home')} onNavigate={setScreen} />}
         {screen === 'chinese' && <ChineseScreen onBack={() => setScreen('home')} onNavigate={setScreen} />}
         {screen === 'math' && <MathScreen onBack={() => setScreen('home')} />}
@@ -186,7 +197,7 @@ function AppContent() {
         {screen === 'stats' && <StatsScreen onBack={() => setScreen('home')} />}
         {screen === 'ai-chat' && <AIChatScreen onBack={() => setScreen('home')} />}
         {screen === 'parent' && <ParentDashboard onBack={() => setScreen('home')} />}
-        {screen === 'tutor' && <AITutorScreen onBack={() => setScreen('home')} />}
+        {screen === 'tutor' && <AITutorScreen onBack={() => { setReviewPreset(null); setScreen('home'); }} preset={reviewPreset} />}
       </main>
       <nav className="bottom-nav bottom-nav-scroll">
         {[

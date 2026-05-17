@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useGame, getPetEmoji } from '../store';
 import { homeworkDiagnose, generateReview } from '../api';
 import { ocrImage, isValidText } from '../utils/ocr';
@@ -30,14 +30,14 @@ const SUBJECTS = [
   { id: 'gs', label: '常识', icon: '🌍', color: '#FFDAA3' },
 ];
 
-export default function AITutorScreen({ subject: initSubject, onBack }) {
+export default function AITutorScreen({ onBack, preset }) {
   const { state, dispatch } = useGame();
   const fileInputRef = useRef(null);
 
   // 核心状态
   const [mode, setMode] = useState(null); // 'diagnosis' | 'review'
-  const [step, setStep] = useState('subject-select'); // 状态机步骤
-  const [subject, setSubject] = useState(initSubject || 'math');
+  const [step, setStep] = useState('subject-select');
+  const [subject, setSubject] = useState('math');
   const [petMood, setPetMood] = useState('normal');
   const [petStatus, setPetStatus] = useState('');
 
@@ -67,6 +67,29 @@ export default function AITutorScreen({ subject: initSubject, onBack }) {
 
   const subjectInfo = SUBJECTS.find(s => s.id === subject) || SUBJECTS[0];
   const grade = state.userGrade || 'p3';
+  const presetDone = useRef(false);
+
+  // 处理教学日历预设（从首页"今日复习"点击进入）
+  useEffect(() => {
+    if (preset?.subject && preset?.topic && !presetDone.current) {
+      presetDone.current = true;
+      const s = preset.subject;
+      const info = SUBJECTS.find(x => x.id === s);
+      if (!info) return;
+      setSubject(s);
+      setMode('review');
+      const prompt = [
+        `請根據以下課題出複習題：`,
+        `科目：${info.label}`,
+        `課題：${preset.topic}`,
+        preset.desc ? `說明：${preset.desc}` : '',
+      ].filter(Boolean).join('\n');
+      setReviewContent(prompt);
+      setStep('review:input');
+      // 自动触发出题
+      setTimeout(() => handleGenerateReview(prompt), 300);
+    }
+  }, [preset]);
 
   // ===== 图片上传 + OCR =====
   async function handleImageUpload(file) {
@@ -143,12 +166,13 @@ export default function AITutorScreen({ subject: initSubject, onBack }) {
   }
 
   // ===== 提交复习出题 =====
-  async function handleGenerateReview() {
-    const content = reviewContent.trim();
+  async function handleGenerateReview(overrideContent) {
+    const content = (overrideContent || reviewContent).trim();
     if (!content || content.length < 10) {
       setReviewError('请输入至少 10 个字的课本内容');
       return;
     }
+    if (!overrideContent) setReviewContent(content);
 
     setReviewLoading(true);
     setReviewError('');
