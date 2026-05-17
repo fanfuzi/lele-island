@@ -243,7 +243,7 @@ export default function PetRoom({ onBack }) {
               <p className="empty-hint">还没有家具，去商店买一些吧！</p>
             ) : (
               ownedFurniture.map(item => {
-                const isPlaced = furniture.includes(item.id);
+                const isPlaced = furniture.some(f => f.id === item.id);
                 return (
                   <button
                     key={item.id}
@@ -257,7 +257,7 @@ export default function PetRoom({ onBack }) {
                 );
               })
             )}
-            {placedFurniture.length >= 6 && <p className="empty-hint">房间摆满了！（最多6件）</p>}
+            {furniture.length >= 6 && <p className="empty-hint">房间摆满了！（最多6件）</p>}
           </div>
         </div>
       )}
