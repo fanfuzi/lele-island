@@ -228,6 +228,22 @@ function PetSprite({ type, color, mood = 'normal', celebrating = false, accessor
         <ellipse cx="100" cy="38" rx="5" ry="4" fill="#FFB5C2" opacity="0.5" />
       </g>
     ),
+    fox: (
+      <g>
+        <polygon points="20,36 14,4 36,30" fill={color} stroke="#00000018" strokeWidth="1" />
+        <polygon points="36,30 28,14 42,28" fill="#FFE0B2" opacity="0.6" />
+        <polygon points="100,36 106,4 84,30" fill={color} stroke="#00000018" strokeWidth="1" />
+        <polygon points="84,30 92,14 78,28" fill="#FFE0B2" opacity="0.6" />
+      </g>
+    ),
+    panda: (
+      <g>
+        <ellipse cx="24" cy="32" rx="14" ry="14" fill="#333" />
+        <ellipse cx="24" cy="32" rx="8" ry="8" fill="#555" />
+        <ellipse cx="96" cy="32" rx="14" ry="14" fill="#333" />
+        <ellipse cx="96" cy="32" rx="8" ry="8" fill="#555" />
+      </g>
+    ),
   }[type] || null;
 
   const nose = {
@@ -235,9 +251,11 @@ function PetSprite({ type, color, mood = 'normal', celebrating = false, accessor
     dog: <ellipse cx="60" cy="48" rx="6" ry="5" fill="#4A3A3A" />,
     rabbit: <ellipse cx="60" cy="48" rx="3" ry="2.5" fill="#FFB5C2" />,
     hamster: <ellipse cx="60" cy="48" rx="3" ry="2.5" fill="#FFB5C2" />,
+    fox: <ellipse cx="60" cy="48" rx="5" ry="4" fill="#333" />,
+    panda: <ellipse cx="60" cy="50" rx="5" ry="3.5" fill="#333" />,
   }[type] || null;
 
-  const whiskers = (type === 'cat' || type === 'hamster') ? (
+  const whiskers = (type === 'cat' || type === 'hamster' || type === 'fox') ? (
     <g stroke="#999" strokeWidth="1.2" opacity="0.6">
       <line x1="28" y1="46" x2="8" y2="42" />
       <line x1="28" y1="50" x2="6" y2="50" />
@@ -264,40 +282,75 @@ function PetSprite({ type, color, mood = 'normal', celebrating = false, accessor
       {/* 身后配件 */}
       {behindAccs.map(renderAccessory)}
 
-      {/* 身体 */}
-      <ellipse cx="60" cy="85" rx="32" ry="20" fill={color} opacity="0.7" stroke="#00000010" strokeWidth="1" />
+      {/* === 身体 === */}
+      {/* 主躯干 — 柔和的梨形曲线 */}
+      <path d="M34,80
+        C22,105 20,135 26,152
+        C30,165 38,170 48,170
+        L72,170
+        C82,170 90,165 94,152
+        C100,135 98,105 86,80 Z"
+        fill={color} opacity="0.75" />
 
-      {/* 上半身脚 (保留作为过渡) */}
-      <ellipse cx="42" cy="95" rx="10" ry="6" fill={color} opacity="0.8" />
-      <ellipse cx="78" cy="95" rx="10" ry="6" fill={color} opacity="0.8" />
+      {/* 后腿/屁股（侧面鼓起） */}
+      <ellipse cx="22" cy="148" rx="14" ry="18" fill={color} opacity="0.7" />
+      <ellipse cx="98" cy="148" rx="14" ry="18" fill={color} opacity="0.7" />
+      <ellipse cx="18" cy="166" rx="9" ry="5" fill={color} opacity="0.8" />
+      <ellipse cx="102" cy="166" rx="9" ry="5" fill={color} opacity="0.8" />
 
-      {/* 下半身 */}
-      <ellipse cx="60" cy="110" rx="34" ry="24" fill={color} opacity="0.65" stroke="#00000008" strokeWidth="1" />
-      <ellipse cx="60" cy="132" rx="28" ry="18" fill={color} opacity="0.6" stroke="#00000008" strokeWidth="1" />
+      {/* 前腿（曲线锥形，接近真实肢体） */}
+      <path d="M36,100
+        Q30,130 34,158
+        Q36,166 42,168
+        L46,168
+        Q50,166 48,158
+        L48,100 Z"
+        fill={color} opacity="0.85" />
+      <path d="M84,100
+        Q90,130 86,158
+        Q84,166 78,168
+        L74,168
+        Q70,166 72,158
+        L72,100 Z"
+        fill={color} opacity="0.85" />
 
-      {/* 后腿 */}
-      <ellipse cx="28" cy="145" rx="18" ry="16" fill={color} opacity="0.75" />
-      <ellipse cx="92" cy="145" rx="18" ry="16" fill={color} opacity="0.75" />
-      <ellipse cx="24" cy="160" rx="12" ry="8" fill={color} opacity="0.8" />
-      <ellipse cx="96" cy="160" rx="12" ry="8" fill={color} opacity="0.8" />
+      {/* 熊貓專屬：黑色的前腿和肩膀帶 */}
+      {type === 'panda' && (
+        <>
+          <path d="M36,100 Q30,130 34,158 Q36,166 42,168 L46,168 Q50,166 48,158 L48,100 Z" fill="#333" opacity="0.9" />
+          <path d="M84,100 Q90,130 86,158 Q84,166 78,168 L74,168 Q70,166 72,158 L72,100 Z" fill="#333" opacity="0.9" />
+          <path d="M32,95 Q60,110 88,95" fill="none" stroke="#333" strokeWidth="20" strokeLinecap="round" opacity="0.85" />
+        </>
+      )}
 
-      {/* 前腿（延伸到脚掌） */}
-      <rect x="36" y="96" width="12" height="60" rx="6" fill={color} opacity="0.75" />
-      <rect x="72" y="96" width="12" height="60" rx="6" fill={color} opacity="0.75" />
-
-      {/* 脚掌 */}
-      <ellipse cx="42" cy="158" rx="10" ry="6" fill={color} opacity="0.9" />
-      <ellipse cx="78" cy="158" rx="10" ry="6" fill={color} opacity="0.9" />
+      {/* 前掌 */}
+      {type === 'panda' ? (
+        <>
+          <ellipse cx="42" cy="170" rx="7" ry="4" fill="#333" opacity="0.9" />
+          <ellipse cx="78" cy="170" rx="7" ry="4" fill="#333" opacity="0.9" />
+        </>
+      ) : (
+        <>
+          <ellipse cx="42" cy="170" rx="7" ry="4" fill={color} opacity="0.9" />
+          <ellipse cx="78" cy="170" rx="7" ry="4" fill={color} opacity="0.9" />
+        </>
+      )}
 
       {/* 脚部配件（鞋子） */}
       {footAccs.map(renderAccessory)}
 
       {/* 尾巴 */}
-      {(type === 'cat' || type === 'dog') && (
-        <path d="M90,130 Q112,120 108,100 Q106,88 112,82" fill="none" stroke={color} strokeWidth="7" strokeLinecap="round" opacity="0.7" />
+      {type === 'cat' && (
+        <path d="M90,130 Q112,120 110,100 Q108,88 114,82" fill="none" stroke={color} strokeWidth="7" strokeLinecap="round" opacity="0.7" />
+      )}
+      {type === 'dog' && (
+        <path d="M95,140 Q110,130 108,112 Q106,102 114,96" fill="none" stroke={color} strokeWidth="6" strokeLinecap="round" opacity="0.7" />
+      )}
+      {type === 'fox' && (
+        <path d="M88,132 Q115,125 114,95 Q113,80 110,72" fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" opacity="0.7" />
       )}
       {type === 'rabbit' && (
-        <ellipse cx="60" cy="160" rx="10" ry="8" fill={color} opacity="0.6" />
+        <ellipse cx="60" cy="168" rx="8" ry="6" fill={color} opacity="0.6" />
       )}
 
       {/* 身体配件（在躯干和腿之上） */}
@@ -314,8 +367,19 @@ function PetSprite({ type, color, mood = 'normal', celebrating = false, accessor
       {accIds.filter(a => [12, 15, 22].includes(a)).map(renderAccessory)}
 
       {/* 腮红 */}
-      <ellipse cx="30" cy="55" rx="8" ry="5" fill="#FF8C9E" opacity={blushOpacity} />
-      <ellipse cx="90" cy="55" rx="8" ry="5" fill="#FF8C9E" opacity={blushOpacity} />
+      {type !== 'panda' && (
+        <>
+          <ellipse cx="30" cy="55" rx="8" ry="5" fill="#FF8C9E" opacity={blushOpacity} />
+          <ellipse cx="90" cy="55" rx="8" ry="5" fill="#FF8C9E" opacity={blushOpacity} />
+        </>
+      )}
+      {/* 熊猫专属黑色眼圈 */}
+      {type === 'panda' && (
+        <>
+          <ellipse cx="40" cy="42" rx="14" ry="11" fill="#333" opacity="0.85" />
+          <ellipse cx="80" cy="42" rx="14" ry="11" fill="#333" opacity="0.85" />
+        </>
+      )}
 
       {/* 眼睛 */}
       <ellipse cx="40" cy="42" rx="8" ry="8" fill="white" />
@@ -346,7 +410,7 @@ function PetSprite({ type, color, mood = 'normal', celebrating = false, accessor
       <path d={mouth} fill="none" stroke="#4A3A3A" strokeWidth="2" strokeLinecap="round" />
 
       {/* 舌头 */}
-      {(type === 'dog' || mood === 'excited') && mood !== 'sad' && (
+      {(type === 'dog' || (mood === 'excited' && type !== 'panda')) && mood !== 'sad' && (
         <ellipse cx="60" cy="64" rx="4" ry="6" fill="#FF6B8A" opacity="0.7" />
       )}
 

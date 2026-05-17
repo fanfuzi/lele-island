@@ -134,6 +134,10 @@ function gameReducer(state, action) {
       return { ...state, pet: { ...state.pet, name: action.payload } };
     }
 
+    case 'SET_PET_COLOR': {
+      return { ...state, pet: { ...state.pet, color: action.payload } };
+    }
+
     case 'FEED_PET': {
       const newHunger = Math.min(100, state.pet.hunger + action.payload);
       return { ...state, pet: { ...state.pet, hunger: newHunger }, lastActive: Date.now() };
@@ -495,7 +499,7 @@ export function useGame() {
 
 // 辅助方法
 export function getPetEmoji(type) {
-  const emojis = { cat: '🐱', dog: '🐶', rabbit: '🐰', hamster: '🐹' };
+  const emojis = { cat: '🐱', dog: '🐶', rabbit: '🐰', hamster: '🐹', fox: '🦊', panda: '🐼' };
   return emojis[type] || '🐱';
 }
 

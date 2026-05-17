@@ -1252,6 +1252,22 @@ body {
 .wearing-name { flex: 1; font-size: 13px; font-weight: 600; }
 .btn-remove { padding: 4px 12px; border: 1px solid #ff4444; border-radius: 6px; background: white; color: #ff4444; cursor: pointer; font-size: 12px; }
 
+/* Color picker */
+.color-picker-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0e8f0; }
+.color-picker-section h3 { font-size: 14px; margin-bottom: 8px; }
+.color-picker-row { display: flex; align-items: center; gap: 10px; }
+.color-picker-input {
+  width: 44px; height: 44px;
+  border: 2px solid #e0d8e0;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+}
+.color-picker-input::-webkit-color-swatch-wrapper { padding: 2px; }
+.color-picker-input::-webkit-color-swatch { border: none; border-radius: 50%; }
+.color-picker-value { font-size: 13px; color: var(--text-light); font-family: monospace; }
+
 /* ===== Shop ===== */
 .shop-tabs { display: flex; gap: 6px; }
 .shop-tab {

@@ -10,6 +10,8 @@ const PET_TYPES = [
   { type: 'dog', emoji: '🐶', name: '小狗', color: '#FFDAA3' },
   { type: 'rabbit', emoji: '🐰', name: '小兔', color: '#FFB5E6' },
   { type: 'hamster', emoji: '🐹', name: '仓鼠', color: '#DDA0DD' },
+  { type: 'fox', emoji: '🦊', name: '小狐', color: '#FF8C42' },
+  { type: 'panda', emoji: '🐼', name: '熊猫', color: '#F5F5F5' },
 ];
 
 export default function PetRoom({ onBack }) {
@@ -216,6 +218,19 @@ export default function PetRoom({ onBack }) {
                 <span className="pet-type-name">{p.name}</span>
               </button>
             ))}
+          </div>
+          {/* 自定义颜色 */}
+          <div className="color-picker-section">
+            <h3>🎨 自定义颜色</h3>
+            <div className="color-picker-row">
+              <input
+                type="color"
+                value={pet.color}
+                onChange={e => dispatch({ type: 'SET_PET_COLOR', payload: e.target.value })}
+                className="color-picker-input"
+              />
+              <span className="color-picker-value">{pet.color}</span>
+            </div>
           </div>
         </div>
       )}
