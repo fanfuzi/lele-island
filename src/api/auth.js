@@ -102,3 +102,32 @@ export async function getSubscription() {
     return await apiGet('/user/subscription');
   } catch { return { tier: 'free', valid: true }; }
 }
+
+// ===== 父母管理 =====
+
+export async function parentRegister(username, password, displayName) {
+  const result = await apiPost('/parent/register', { username, password, displayName });
+  setToken(result.token);
+  setStoredUser(result.user);
+  return result.user;
+}
+
+export async function bindChild(inviteCode) {
+  return await apiPost('/parent/bind', { inviteCode });
+}
+
+export async function getChildren() {
+  return await apiGet('/parent/children');
+}
+
+export async function getChildActivity(childUsername, days = 7) {
+  return await apiGet(`/parent/activity?child=${childUsername}&days=${days}`);
+}
+
+export async function getChildAnalysis(childUsername) {
+  return await apiGet(`/parent/analysis?child=${childUsername}`);
+}
+
+export async function getChildMastery(childUsername) {
+  return await apiGet(`/parent/mastery?child=${childUsername}`);
+}

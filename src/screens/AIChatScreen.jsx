@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useGame, getPetEmoji } from '../store';
 import { chatCantonese, checkAIStatus } from '../api';
+import { logActivity } from '../utils/activityLog';
 
 const SCENARIO_TEMPLATES = [
   { id: 'greet', label: '打招呼', icon: '👋', prompt: '一个香港小学三年级的小朋友和你第一次见面，她在和你打招呼说"你好"。请用粤语回应，并配合普通话翻译。' },
@@ -95,6 +96,9 @@ export default function AIChatScreen({ onBack }) {
     }
 
     setIsLoading(false);
+
+    // 记录对话活动
+    logActivity({ type: 'chat', subject: 'cantonese', gameType: 'chat', metadata: { messages: messages.length + 1 } });
 
     // 对话奖励
     setCoins(c => c + 1);

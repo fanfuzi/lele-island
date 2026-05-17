@@ -3,6 +3,7 @@ import { useGame, getPetEmoji } from '../store';
 import { shopItems } from '../data/shopItems';
 import ProgressBar from '../components/ProgressBar';
 import PetCompanion from '../components/PetCompanion';
+import { logActivity } from '../utils/activityLog';
 
 const PET_TYPES = [
   { type: 'cat', emoji: '🐱', name: '小猫', color: '#FFB5C2' },
@@ -24,12 +25,14 @@ export default function PetRoom({ onBack }) {
     dispatch({ type: 'FEED_PET', payload: 20 });
     dispatch({ type: 'ADD_COINS', payload: -2 });
     setPetAction('eating');
+    logActivity({ type: 'pet', subject: null, gameType: 'feed' });
     setTimeout(() => setPetAction(null), 2000);
   }
 
   function handlePlay() {
     dispatch({ type: 'PLAY_WITH_PET', payload: 15 });
     setPetAction('playing');
+    logActivity({ type: 'pet', subject: null, gameType: 'play' });
     setTimeout(() => setPetAction(null), 2000);
   }
 

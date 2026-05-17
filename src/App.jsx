@@ -12,7 +12,9 @@ import ShopScreen from './screens/ShopScreen';
 import StatsScreen from './screens/StatsScreen';
 import AIChatScreen from './screens/AIChatScreen';
 import LoginScreen from './screens/LoginScreen';
-import { getStoredUser, getToken, verifyToken, loadGameDataFromServer, saveGameDataToServer, logout as authLogout } from './api/auth';
+import ParentDashboard from './screens/ParentDashboard';
+import AITutorScreen from './screens/AITutorScreen';
+import { getStoredUser, getToken, verifyToken, loadGameDataFromServer, saveGameDataToServer, logout as authLogout, parentRegister } from './api/auth';
 import './App.css';
 
 function AppContent() {
@@ -23,6 +25,12 @@ function AppContent() {
   const [authLoading, setAuthLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [initializing, setInitializing] = useState(false);
+  const [parentMode, setParentMode] = useState(false);
+  const [parentUsername, setParentUsername] = useState('');
+  const [parentPassword, setParentPassword] = useState('');
+  const [parentLoading, setParentLoading] = useState(false);
+  const [parentError, setParentError] = useState('');
+  const [tutorSubject, setTutorSubject] = useState('math');
 
   // 启动时检查登录状态
   useEffect(() => {
@@ -171,13 +179,15 @@ function AppContent() {
         {screen === 'home' && <HomeScreen onNavigate={setScreen} />}
         {screen === 'cantonese' && <CantoneseScreen onBack={() => setScreen('home')} onNavigate={setScreen} />}
         {screen === 'chinese' && <ChineseScreen onBack={() => setScreen('home')} onNavigate={setScreen} />}
-        {screen === 'math' && <MathScreen onBack={() => setScreen('home')} onNavigate={setScreen} />}
-        {screen === 'english' && <EnglishScreen onBack={() => setScreen('home')} />}
-        {screen === 'gs' && <GSScreen onBack={() => setScreen('home')} />}
+        {screen === 'math' && <MathScreen onBack={() => setScreen('home')} onNavigate={(s, subj) => { if (subj) setTutorSubject(subj); setScreen(s); }} />}
+        {screen === 'english' && <EnglishScreen onBack={() => setScreen('home')} onNavigate={(s, subj) => { if (subj) setTutorSubject(subj); setScreen(s); }} />}
+        {screen === 'gs' && <GSScreen onBack={() => setScreen('home')} onNavigate={(s, subj) => { if (subj) setTutorSubject(subj); setScreen(s); }} />}
         {screen === 'pet-room' && <PetRoom onBack={() => setScreen('home')} />}
         {screen === 'shop' && <ShopScreen onBack={() => setScreen('home')} />}
         {screen === 'stats' && <StatsScreen onBack={() => setScreen('home')} />}
         {screen === 'ai-chat' && <AIChatScreen onBack={() => setScreen('home')} />}
+        {screen === 'parent' && <ParentDashboard onBack={() => setScreen('home')} />}
+        {screen === 'tutor' && <AITutorScreen onBack={() => setScreen('home')} subject={tutorSubject} />}
       </main>
       <nav className="bottom-nav bottom-nav-scroll">
         {[
@@ -261,6 +271,87 @@ function AppContent() {
                 </label>
               </div>
               <p className="settings-hint">在旧域名导出 → 新域名导入，数据无缝迁移</p>
+            </div>
+
+            {/* 邀请码展示（孩子共享给家长） */}
+            <div className="settings-section">
+              <label className="settings-label">🔑 邀请码（共享给家长）</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                <code style={{ flex: 1, padding: '8px 12px', background: '#f8f4f8', borderRadius: 'var(--radius-sm)', fontSize: 16, fontWeight: 700, color: 'var(--pink)', textAlign: 'center' }}>
+                  {user?.username || 'local'}
+                </code>
+                <button className="btn btn-small btn-secondary" onClick={() => {
+                  navigator.clipboard?.writeText(user?.username || 'local');
+                  alert('已复制邀请码 📋');
+                }}>复制</button>
+              </div>
+              <p className="settings-hint">家长在"家长中心"输入此邀请码即可查看你的学习报告</p>
+            </div>
+
+            <div className="settings-section">
+              <label className="settings-label">👨‍👩‍👧 家长中心</label>
+              {!parentMode ? (
+                <button className="btn btn-secondary" onClick={() => setParentMode(true)} style={{ width: '100%' }}>
+                  📊 查看孩子学习报告
+                </button>
+              ) : (
+                <div className="parent-settings-form" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <p style={{ fontSize: 13, color: 'var(--text-light)' }}>首次使用请注册家长账号，然后将孩子的用户名作为邀请码绑定</p>
+                  {parentError && <p style={{ fontSize: 13, color: '#D44' }}>{parentError}</p>}
+                  <input
+                    type="text"
+                    placeholder="家长用户名"
+                    value={parentUsername}
+                    onChange={e => setParentUsername(e.target.value)}
+                    style={{ padding: '8px 12px', border: '2px solid var(--pink-light)', borderRadius: 'var(--radius-sm)', fontSize: 14, fontFamily: 'var(--font)' }}
+                  />
+                  <input
+                    type="password"
+                    placeholder="密码"
+                    value={parentPassword}
+                    onChange={e => setParentPassword(e.target.value)}
+                    style={{ padding: '8px 12px', border: '2px solid var(--pink-light)', borderRadius: 'var(--radius-sm)', fontSize: 14, fontFamily: 'var(--font)' }}
+                  />
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      className="btn btn-primary btn-small"
+                      disabled={parentLoading || !parentUsername || !parentPassword}
+                      onClick={async () => {
+                        setParentLoading(true);
+                        setParentError('');
+                        try {
+                          await parentRegister(parentUsername, parentPassword, '家长');
+                          setShowSettings(false);
+                          setParentMode(false);
+                          setScreen('parent');
+                        } catch (e) {
+                          setParentError(e.message);
+                        }
+                        setParentLoading(false);
+                      }}
+                      style={{ flex: 1 }}
+                    >{parentLoading ? '处理中…' : '注册家长账号'}</button>
+                  </div>
+                  <button
+                    className="btn btn-small btn-secondary"
+                    onClick={() => {
+                      setParentMode(false);
+                      setScreen('parent');
+                      setShowSettings(false);
+                    }}
+                    style={{ fontSize: 12 }}
+                  >
+                    我已注册，直接查看 →
+                  </button>
+                  <button
+                    className="btn btn-small"
+                    onClick={() => setParentMode(false)}
+                    style={{ fontSize: 12, color: 'var(--text-light)' }}
+                  >
+                    取消
+                  </button>
+                </div>
+              )}
             </div>
 
             <button className="btn btn-secondary" onClick={handleLogout} style={{ width: '100%', marginTop: 12 }}>

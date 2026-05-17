@@ -167,6 +167,198 @@ export async function onRequest(context) {
     return json({ gameData: row ? JSON.parse(row.data) : null });
   }
 
+  // ===== 活动日志 =====
+  if (path === 'activity/log' && method === 'POST') {
+    if (!db) return json({ ok: true }); // 离线时静默跳过
+    try {
+      const body = await request.json();
+      const token = extractToken(request);
+      let username = null;
+      if (token) {
+        const user = await getUserFromToken(db, token);
+        if (user) username = user.username;
+      }
+      // 如果带 token 就用 token 的用户，否则用 body 中的 username（允许后端直接用）
+      const finalUsername = username || body.username;
+      if (!finalUsername) return json({ ok: true });
+
+      await db.prepare(
+        `INSERT INTO activity_logs (username, activity_type, subject, game_type, score, total_count, correct_count, duration_seconds, metadata)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        finalUsername,
+        body.activityType || 'visit',
+        body.subject || null,
+        body.gameType || null,
+        body.score ?? null,
+        body.totalCount ?? null,
+        body.correctCount ?? null,
+        body.durationSeconds ?? null,
+        body.metadata || null,
+      ).run();
+      return json({ ok: true });
+    } catch (e) {
+      console.error('Activity log error:', e.message);
+      return json({ ok: true }); // 静默失败
+    }
+  }
+
+  // ===== 父母管理路由 =====
+
+  if (path === 'parent/register' && method === 'POST') {
+    if (!db) return json({ error: '离线模式' }, 503);
+    try {
+      const { username, password, displayName } = await request.json();
+      if (!username || !password) return json({ error: '用户名和密码不能为空' }, 400);
+
+      const parentPrefix = 'parent_';
+      const parentUsername = username.startsWith(parentPrefix) ? username : `${parentPrefix}${username}`;
+
+      const existing = await db.prepare('SELECT username FROM users WHERE username = ?').bind(parentUsername).first();
+      if (existing) return json({ error: '家长账号已存在' }, 409);
+
+      const hash = await hashPassword(password);
+      await db.prepare('INSERT INTO users (username, password_hash, display_name, grade) VALUES (?, ?, ?, ?)')
+        .bind(parentUsername, hash, displayName || username, 'parent').run();
+
+      const token = crypto.randomUUID();
+      await db.prepare('INSERT INTO sessions (token, username) VALUES (?, ?)').bind(token, parentUsername).run();
+
+      return json({ token, user: { username: parentUsername, displayName: displayName || username, grade: 'parent', tier: 'free', isParent: true } });
+    } catch (e) {
+      return json({ error: e.message }, 500);
+    }
+  }
+
+  if (path === 'parent/bind' && method === 'POST') {
+    if (!db) return json({ error: '离线模式' }, 503);
+    try {
+      const token = extractToken(request);
+      const parent = await getUserFromToken(db, token);
+      if (!parent) return json({ error: '请先登录家长账号' }, 401);
+
+      const { inviteCode } = await request.json();
+      if (!inviteCode) return json({ error: '邀请码不能为空' }, 400);
+
+      // 邀请码 = 孩子的用户名
+      const child = await db.prepare('SELECT username, display_name FROM users WHERE username = ?').bind(inviteCode).first();
+      if (!child) return json({ error: '邀请码无效，请确认孩子已注册' }, 404);
+
+      // 检查是否已绑定
+      const existing = await db.prepare('SELECT 1 FROM family_bindings WHERE parent_username = ? AND child_username = ?')
+        .bind(parent.username, child.username).first();
+      if (existing) return json({ error: '这个孩子已经绑定过了' }, 409);
+
+      await db.prepare('INSERT INTO family_bindings (parent_username, child_username) VALUES (?, ?)')
+        .bind(parent.username, child.username).run();
+
+      return json({ ok: true, child: { username: child.username, displayName: child.display_name } });
+    } catch (e) {
+      return json({ error: e.message }, 500);
+    }
+  }
+
+  if (path === 'parent/children' && method === 'GET') {
+    if (!db) return json({ children: [] });
+    try {
+      const token = extractToken(request);
+      const parent = await getUserFromToken(db, token);
+      if (!parent) return json({ error: '请先登录家长账号' }, 401);
+
+      const rows = await db.prepare(
+        'SELECT c.username, c.display_name FROM family_bindings b JOIN users c ON b.child_username = c.username WHERE b.parent_username = ?'
+      ).bind(parent.username).all();
+
+      return json({ children: (rows.results || []).map(r => ({ username: r.username, displayName: r.display_name })) });
+    } catch (e) {
+      return json({ error: e.message }, 500);
+    }
+  }
+
+  if (path === 'parent/activity' && method === 'GET') {
+    if (!db) return json({ activities: [] });
+    try {
+      const token = extractToken(request);
+      const parent = await getUserFromToken(db, token);
+      if (!parent) return json({ error: '请先登录家长账号' }, 401);
+
+      const child = url.searchParams.get('child');
+      const days = parseInt(url.searchParams.get('days')) || 7;
+      if (!child) return json({ error: '请指定孩子用户名' }, 400);
+
+      // 验证亲子关系
+      const bound = await db.prepare('SELECT 1 FROM family_bindings WHERE parent_username = ? AND child_username = ?')
+        .bind(parent.username, child).first();
+      if (!bound) return json({ error: '未绑定该孩子' }, 403);
+
+      const rows = await db.prepare(
+        `SELECT * FROM activity_logs WHERE username = ? AND created_at >= datetime('now', ? || ' days') ORDER BY created_at DESC LIMIT 500`
+      ).bind(child, `-${days}`).all();
+
+      return json({ activities: rows.results || [] });
+    } catch (e) {
+      return json({ error: e.message }, 500);
+    }
+  }
+
+  if (path === 'parent/analysis' && method === 'GET') {
+    if (!db) return json({ error: '离线模式' }, 503);
+    try {
+      const token = extractToken(request);
+      const parent = await getUserFromToken(db, token);
+      if (!parent) return json({ error: '请先登录家长账号' }, 401);
+
+      const child = url.searchParams.get('child');
+      if (!child) return json({ error: '请指定孩子用户名' }, 400);
+
+      // 验证亲子关系
+      const bound = await db.prepare('SELECT 1 FROM family_bindings WHERE parent_username = ? AND child_username = ?')
+        .bind(parent.username, child).first();
+      if (!bound) return json({ error: '未绑定该孩子' }, 403);
+
+      // 按科目汇总
+      const bySubject = await db.prepare(
+        `SELECT subject,
+                COUNT(*) as count,
+                SUM(COALESCE(score, 0)) as total_score,
+                SUM(COALESCE(correct_count, 0)) as total_correct,
+                SUM(COALESCE(total_count, 0)) as total_questions,
+                SUM(COALESCE(duration_seconds, 0)) as total_duration
+         FROM activity_logs
+         WHERE username = ? AND created_at >= datetime('now', '-14 days')
+         GROUP BY subject`
+      ).bind(child).all();
+
+      // 每日汇总
+      const byDay = await db.prepare(
+        `SELECT DATE(created_at) as day,
+                COUNT(*) as count,
+                SUM(COALESCE(duration_seconds, 0)) as total_duration
+         FROM activity_logs
+         WHERE username = ? AND created_at >= datetime('now', '-14 days')
+         GROUP BY DATE(created_at)
+         ORDER BY day DESC`
+      ).bind(child).all();
+
+      // 游戏偏好
+      const byGame = await db.prepare(
+        `SELECT activity_type, game_type, COUNT(*) as count
+         FROM activity_logs
+         WHERE username = ? AND created_at >= datetime('now', '-14 days')
+         GROUP BY activity_type, game_type
+         ORDER BY count DESC`
+      ).bind(child).all();
+
+      return json({
+        bySubject: bySubject.results || [],
+        byDay: byDay.results || [],
+        byGame: byGame.results || [],
+      });
+    } catch (e) {
+      return json({ error: e.message }, 500);
+    }
+  }
+
   // 其他 /user/ 和 /auth/ 路径统一返回离线
   if (path.startsWith('auth/') || path.startsWith('user/')) {
     return json({ error: '离线模式' }, 503);
@@ -305,6 +497,65 @@ export async function onRequest(context) {
         if (!reply) return json({ templates: [] });
         const m = reply.match(/\[[\s\S]*\]/s);
         return json({ templates: m ? JSON.parse(m[0]) : [] });
+      }
+
+      case 'tutor/homework-diagnose': {
+        const { textContent, subject, grade, wrongRecords, masteryData } = body;
+        if (!textContent) return json({ error: '缺少作业内容' }, 400);
+        const sn = { math: '数学', chinese: '汉字', cantonese: '粤语', english: '英文', gs: '常识' }[subject] || subject;
+
+        const systemPrompt = `你是香港一位专门培养小学生"自检习惯"和"数感逻辑"的资深高级${sn}助教。
+
+核心教学原则：
+1. 反馈非具体化：发现错误时，绝不指明具体是哪道题，只告诉学生错误总数
+2. 逻辑前置：引导学生在计算前先估算，在解题前先提取关键词
+3. 验证闭环：每道题答完后鼓励用反向验算检查
+4. 视觉化引导：鼓励用线段图或分块草稿理清多步运算
+5. 语言亲切有趣：多用"侦探"、"挑战"、"发现"等词汇
+
+根据作业内容输出 JSON（不要其他文字）：
+{
+  "errorCount": 数字,
+  "errorTypes": ["careless","keyword","logic","geometry"],
+  "firstMessage": "侦探口吻的错误总数提示",
+  "guidanceSteps": [
+    { "type": "careless", "detectiveHint": "估算防御策略提示", "strategy": "estimation-defense" }
+  ],
+  "errorDetails": { "careless": "描述", "keyword": "描述", "logic": "描述" },
+  "habitChallenge": { "type": "reverse-check", "title": "反向验算", "description": "请用加法检查减法题的答案" }
+}`;
+
+        const reply = await askDeepseek(systemPrompt, `年级：${grade}\n作业：${textContent}\n薄弱：${(wrongRecords||[]).map(r=>r.category).filter(Boolean).join('、')||'暂无'}\n掌握度：${JSON.stringify(masteryData||[])}\n请诊断错误。`, apiKey, 1200);
+        if (!reply) return json(null);
+        const m = reply.match(/\{[\s\S]*\}/);
+        return json(m ? JSON.parse(m[0]) : null);
+      }
+
+      case 'generate-review': {
+        const { subject, grade, textbookContent, wrongTopics, masteryData, count = 5 } = body;
+        if (!textbookContent) return json({ error: '缺少课本内容' }, 400);
+        const sn = { math: '数学', chinese: '汉字', cantonese: '粤语', english: '英文', gs: '常识' }[subject] || subject;
+
+        const weakPoints = (masteryData || [])
+          .filter(m => m.level < 0.6).sort((a, b) => a.level - b.level).map(m => m.topic);
+        const allFocus = [...new Set([...(wrongTopics || []), ...weakPoints])];
+
+        const systemPrompt = `你是香港一位专门培养小学生"自检习惯"和"数感逻辑"的资深高级${sn}助教。
+
+根据课本内容和掌握度数据出复习题：
+1. 基于课本内容，紧贴所学知识
+2. 优先考察薄弱知识点（level<0.6），掌握度越低出题越多
+3. 难度适合${grade}年级，用繁体中文
+4. 每道题附带 commonMistake（常见错误提醒）和 estimationTip（估算提示）
+5. 题型：选择题(4选1)、填空题、判断题混合
+6. 薄弱点70%，新内容30%
+
+输出 JSON：{"questions":[{"id":"REV-1","question":"...","answer":"...","options":[...],"story":"解题思路","category":"知识点","commonMistake":"常见错误","estimationTip":"估算提示"}]}`;
+
+        const reply = await askDeepseek(systemPrompt, `课本内容：${textbookContent}\n年级：${grade}\n薄弱点：${allFocus.join('、')||'暂无'}\n掌握度：${JSON.stringify(masteryData||[])}\n出${count}道${sn}复习题。`, apiKey, 1500);
+        if (!reply) return json({ questions: null });
+        const m = reply.match(/\{[\s\S]*\}/);
+        return json(m ? JSON.parse(m[0]) : { questions: null });
       }
 
       default:

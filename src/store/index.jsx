@@ -59,6 +59,18 @@ const initialState = {
   writtenCharCounts: {},
   // 最后活跃时间（用于离线衰减计算）
   lastActive: Date.now(),
+  // 掌握度追踪（按知识点）
+  mastery: {
+    math: {},
+    chinese: {},
+    cantonese: {},
+    english: {},
+    gs: {},
+  },
+  // 习惯养成记录
+  habitLog: [],
+  // 诊断记录
+  diagnosisHistory: [],
 };
 
 function loadState() {
@@ -349,6 +361,34 @@ function gameReducer(state, action) {
           hunger: Math.max(0, state.pet.hunger - decayAmount),
           happiness: Math.max(0, state.pet.happiness - decayAmount),
         },
+        lastActive: Date.now(),
+      };
+    }
+
+    case 'UPDATE_MASTERY': {
+      const { subject, category, correct, total } = action.payload;
+      const subjectMastery = { ...(state.mastery[subject] || {}) };
+      const old = subjectMastery[category] || { level: 0, correct: 0, total: 0, lastReview: 0 };
+      const newTotal = old.total + total;
+      const newCorrect = old.correct + correct;
+      const newLevel = newTotal > 0 ? newCorrect / newTotal : 0;
+      subjectMastery[category] = { level: newLevel, correct: newCorrect, total: newTotal, lastReview: Date.now() };
+      return {
+        ...state,
+        mastery: { ...state.mastery, [subject]: subjectMastery },
+      };
+    }
+
+    case 'RECORD_HABIT': {
+      const habitEntry = { ...action.payload, timestamp: Date.now() };
+      return { ...state, habitLog: [...state.habitLog, habitEntry] };
+    }
+
+    case 'RECORD_DIAGNOSIS': {
+      const diagnosisEntry = { ...action.payload, timestamp: Date.now() };
+      return {
+        ...state,
+        diagnosisHistory: [...state.diagnosisHistory, diagnosisEntry],
         lastActive: Date.now(),
       };
     }

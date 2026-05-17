@@ -16,8 +16,10 @@
 
 import express from 'express';
 import cors from 'cors';
-import { authRouter } from './auth.js';
+import jwt from 'jsonwebtoken';
+import { authRouter, JWT_SECRET } from './auth.js';
 import { userRouter } from './user.js';
+import { getDb, createUser } from './db.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -28,6 +30,182 @@ app.use(express.json({ limit: '10mb' }));
 // ===== 认证与用户路由 =====
 app.use('/api/auth', authRouter);
 app.use('/api/user', userRouter);
+
+// ===== 活动日志 =====
+app.post('/api/activity/log', (req, res) => {
+  const { activityType, subject, gameType, score, totalCount, correctCount, durationSeconds, metadata, username } = req.body;
+  try {
+    const db = getDb();
+    const finalUsername = username || 'anonymous';
+    db.prepare(
+      `INSERT INTO activity_logs (username, activity_type, subject, game_type, score, total_count, correct_count, duration_seconds, metadata)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(finalUsername, activityType || 'visit', subject || null, gameType || null, score ?? null, totalCount ?? null, correctCount ?? null, durationSeconds ?? null, metadata || null);
+  } catch (e) {
+    console.error('Activity log error:', e.message);
+  }
+  res.json({ ok: true });
+});
+
+// ===== 父母管理 =====
+
+// 注册家长账号
+app.post('/api/parent/register', (req, res) => {
+  const { username, password, displayName } = req.body;
+  if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
+  try {
+    const db = getDb();
+    const parentPrefix = 'parent_';
+    const parentUsername = username.startsWith(parentPrefix) ? username : `${parentPrefix}${username}`;
+
+    const user = createUser(parentUsername, password, displayName || username, { userGrade: 'parent' });
+    if (!user) return res.status(409).json({ error: '家长账号已存在' });
+
+    const token = jwt.sign({ id: user.id, username: user.username, tier: 'free' }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ token, user: { username: user.username, displayName: displayName || username, grade: 'parent', tier: 'free', isParent: true } });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 绑定孩子（通过邀请码 = 孩子用户名）
+app.post('/api/parent/bind', (req, res) => {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: '请先登录' });
+  try {
+    const decoded = jwt.verify(auth.slice(7), JWT_SECRET);
+    const db = getDb();
+    const { inviteCode } = req.body;
+    if (!inviteCode) return res.status(400).json({ error: '邀请码不能为空' });
+
+    const child = db.prepare('SELECT username, display_name FROM users WHERE username = ?').get(inviteCode);
+    if (!child) return res.status(404).json({ error: '邀请码无效' });
+
+    const existing = db.prepare('SELECT 1 FROM family_bindings WHERE parent_username = ? AND child_username = ?').get(decoded.username, child.username);
+    if (existing) return res.status(409).json({ error: '已经绑定过了' });
+
+    db.prepare('INSERT INTO family_bindings (parent_username, child_username) VALUES (?, ?)').run(decoded.username, child.username);
+    res.json({ ok: true, child: { username: child.username, displayName: child.display_name } });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 获取绑定孩子列表
+app.get('/api/parent/children', (req, res) => {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: '请先登录' });
+  try {
+    const decoded = jwt.verify(auth.slice(7), JWT_SECRET);
+    const db = getDb();
+    const rows = db.prepare(
+      'SELECT c.username, c.display_name FROM family_bindings b JOIN users c ON b.child_username = c.username WHERE b.parent_username = ?'
+    ).all(decoded.username);
+    res.json({ children: rows.map(r => ({ username: r.username, displayName: r.display_name })) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 获取孩子活动
+app.get('/api/parent/activity', (req, res) => {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: '请先登录' });
+  try {
+    const decoded = jwt.verify(auth.slice(7), JWT_SECRET);
+    const db = getDb();
+    const child = req.query.child;
+    const days = parseInt(req.query.days) || 7;
+    if (!child) return res.status(400).json({ error: '请指定孩子用户名' });
+
+    const bound = db.prepare('SELECT 1 FROM family_bindings WHERE parent_username = ? AND child_username = ?').get(decoded.username, child);
+    if (!bound) return res.status(403).json({ error: '未绑定该孩子' });
+
+    const rows = db.prepare(
+      `SELECT * FROM activity_logs WHERE username = ? AND created_at >= datetime('now', ? || ' days') ORDER BY created_at DESC LIMIT 500`
+    ).all(child, `-${days}`);
+    res.json({ activities: rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 获取孩子掌握度数据（从 game_data 提取）
+app.get('/api/parent/mastery', (req, res) => {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: '请先登录' });
+  try {
+    const decoded = jwt.verify(auth.slice(7), JWT_SECRET);
+    const db = getDb();
+    const child = req.query.child;
+    if (!child) return res.status(400).json({ error: '请指定孩子用户名' });
+
+    const bound = db.prepare('SELECT 1 FROM family_bindings WHERE parent_username = ? AND child_username = ?').get(decoded.username, child);
+    if (!bound) return res.status(403).json({ error: '未绑定该孩子' });
+
+    const row = db.prepare('SELECT data FROM game_data WHERE username = ?').get(child);
+    if (!row) return res.json({ mastery: null });
+
+    const gameData = JSON.parse(row.data);
+    res.json({ mastery: gameData.mastery || {}, diagnosisHistory: (gameData.diagnosisHistory || []).slice(-20), habitLog: (gameData.habitLog || []).slice(-20) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 获取孩子分析报告
+app.get('/api/parent/analysis', (req, res) => {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: '请先登录' });
+  try {
+    const decoded = jwt.verify(auth.slice(7), JWT_SECRET);
+    const db = getDb();
+    const child = req.query.child;
+    if (!child) return res.status(400).json({ error: '请指定孩子用户名' });
+
+    const bound = db.prepare('SELECT 1 FROM family_bindings WHERE parent_username = ? AND child_username = ?').get(decoded.username, child);
+    if (!bound) return res.status(403).json({ error: '未绑定该孩子' });
+
+    const bySubject = db.prepare(
+      `SELECT subject, COUNT(*) as count, SUM(COALESCE(score, 0)) as total_score,
+              SUM(COALESCE(correct_count, 0)) as total_correct,
+              SUM(COALESCE(total_count, 0)) as total_questions,
+              SUM(COALESCE(duration_seconds, 0)) as total_duration
+       FROM activity_logs WHERE username = ? AND created_at >= datetime('now', '-14 days')
+       GROUP BY subject`
+    ).all(child);
+
+    const byDay = db.prepare(
+      `SELECT DATE(created_at) as day, COUNT(*) as count, SUM(COALESCE(duration_seconds, 0)) as total_duration
+       FROM activity_logs WHERE username = ? AND created_at >= datetime('now', '-14 days')
+       GROUP BY DATE(created_at) ORDER BY day DESC`
+    ).all(child);
+
+    const byGame = db.prepare(
+      `SELECT activity_type, game_type, COUNT(*) as count
+       FROM activity_logs WHERE username = ? AND created_at >= datetime('now', '-14 days')
+       GROUP BY activity_type, game_type ORDER BY count DESC`
+    ).all(child);
+
+    // 诊断记录（近30天）
+    const diagnosisLogs = db.prepare(
+      `SELECT metadata, created_at FROM activity_logs
+       WHERE username = ? AND activity_type = 'diagnosis' AND created_at >= datetime('now', '-30 days')
+       ORDER BY created_at DESC LIMIT 30`
+    ).all(child);
+
+    // 习惯养成记录（近30天）
+    const habitLogs = db.prepare(
+      `SELECT metadata, created_at FROM activity_logs
+       WHERE username = ? AND activity_type = 'practice' AND game_type = 'habit' AND created_at >= datetime('now', '-30 days')
+       ORDER BY created_at DESC LIMIT 50`
+    ).all(child);
+
+    res.json({ bySubject, byDay, byGame, diagnosisLogs, habitLogs });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // ===== AI 提供商配置 =====
 const CONFIG = {
@@ -97,6 +275,17 @@ async function askAI(systemPrompt, userMessage, maxTokens = 500) {
 }
 
 async function askClaude(systemPrompt, userMessage, maxTokens) {
+  // 支持多模态：userMessage 可以是字符串或 { text, image } 对象
+  let content;
+  if (typeof userMessage === 'object' && userMessage !== null && userMessage.image) {
+    content = [
+      { type: 'text', text: userMessage.text || '' },
+      { type: 'image', source: { type: 'base64', media_type: userMessage.mimeType || 'image/png', data: userMessage.image } },
+    ];
+  } else {
+    content = typeof userMessage === 'string' ? userMessage : (userMessage?.text || JSON.stringify(userMessage));
+  }
+
   const resp = await fetch(`${config.baseUrl}/messages`, {
     method: 'POST',
     headers: config.headers(config.apiKey),
@@ -104,7 +293,7 @@ async function askClaude(systemPrompt, userMessage, maxTokens) {
       model: config.defaultModel,
       max_tokens: maxTokens,
       system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
+      messages: [{ role: 'user', content }],
     }),
   });
 
@@ -397,6 +586,168 @@ app.post('/api/generate-template', async (req, res) => {
     console.error('Parse error:', e.message);
   }
   res.json({ templates: [] });
+});
+
+// ===== AI 助教：OCR 文字识别（仅 Claude Vision） =====
+app.post('/api/ocr', async (req, res) => {
+  const { image } = req.body;
+  if (!image) return res.status(400).json({ error: '缺少图片数据' });
+  if (provider !== 'anthropic') return res.json({ text: null });
+
+  const systemPrompt = `请提取这张图片中的所有文字内容。这是香港小学的课本或练习册页面，
+可能包含繁体中文、英文或数字。请完整、准确地提取所有文字，保持原有段落格式和顺序。
+如果图片中有算式，请保持数学符号的准确性。`;
+
+  const text = await askClaude(systemPrompt, { text: '请提取这张图片中的所有文字内容。', image, mimeType: 'image/png' }, 800);
+  res.json({ text });
+});
+
+// ===== AI 助教：作业诊断（核心引导式教学） =====
+app.post('/api/tutor/homework-diagnose', async (req, res) => {
+  const { textContent, subject, grade, wrongRecords, masteryData } = req.body;
+  if (!provider || !config?.apiKey) return res.json(null);
+  if (!textContent) return res.json({ error: '缺少作业内容' });
+
+  const subjectName = { math: '数学', chinese: '汉字', cantonese: '粤语', english: '英文', gs: '常识' }[subject] || subject;
+
+  const systemPrompt = `你是香港一位专门培养小学生"自检习惯"和"数感逻辑"的资深高级${subjectName}助教。
+
+你的核心教学原则：
+1. 反馈非具体化：发现错误时，绝不指明具体是哪道题或哪个算式，只告诉学生错误总数
+2. 逻辑前置：引导学生在计算前先估算，在解题前先提取关键词
+3. 验证闭环：每道题答完后鼓励用反向验算检查
+4. 视觉化引导：鼓励用线段图或分块草稿理清多步运算逻辑
+5. 语言亲切有趣：多用"侦探"、"挑战"、"发现"等词汇，将订正过程趣味化
+
+根据提供的作业内容，分析所有错误并按类型归类。输出严格的 JSON 格式（不要包含其他文字）：
+
+{
+  "errorCount": 数字,
+  "errorTypes": ["careless"|"keyword"|"logic"|"geometry"],
+  "firstMessage": "用侦探口吻告诉学生错误总数，鼓励他自己找出问题",
+  "guidanceSteps": [
+    {
+      "type": "careless",
+      "detectiveHint": "针对计算粗心的非具体引导提示，使用估算防御策略",
+      "strategy": "estimation-defense"
+    }
+  ],
+  "errorDetails": {
+    "careless": "分析计算粗心类错误的模式描述（不指明具体位置）",
+    "keyword": "分析关键词遗漏类错误的模式描述",
+    "logic": "分析多步逻辑断层类错误的模式描述",
+    "geometry": "分析几何观察遗漏类错误的模式描述"
+  },
+  "habitChallenge": {
+    "type": "reverse-check|neat-draft|common-sense",
+    "title": "挑战标题",
+    "description": "挑战描述"
+  }
+}
+
+错误类型说明：
+- careless: 计算粗心（进位/退位/口诀错误）→ 策略：估算防御，先估后算
+- keyword: 关键词遗漏（"半打"、"比...贵"等）→ 策略：圈出数量关系词
+- logic: 多步逻辑断层（漏掉中间步骤）→ 策略：画线段图辅助
+- geometry: 几何观察遗漏（漏数图形）→ 策略：有序搜索，从小到大
+
+习惯挑战 3 种类型：
+- reverse-check: "请用加法检查减法题的答案"
+- neat-draft: "把竖式重新写在草稿区，确保个位十位对齐"
+- common-sense: "算出的结果比题目给的数值还大/小？这合理吗？"`;
+
+  const userMsg = `学生年级：${grade}
+掌握的薄弱环节：${(wrongRecords || []).slice(0, 10).map(r => r.category).filter(Boolean).join('、') || '暂无记录'}
+掌握度数据：${JSON.stringify(masteryData || [])}
+
+作业内容：
+${textContent}
+
+请分析这份作业中的错误，输出诊断 JSON。`;
+
+  const reply = await askAI(systemPrompt, userMsg, 1200);
+  if (!reply) return res.json(null);
+
+  try {
+    const jsonMatch = reply.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const result = JSON.parse(jsonMatch[0]);
+      return res.json(result);
+    }
+  } catch (e) {
+    console.error('Diagnose parse error:', e.message);
+  }
+  res.json(null);
+});
+
+// ===== AI 助教：自适应复习出题 =====
+app.post('/api/generate-review', async (req, res) => {
+  const { subject, grade, textbookContent, wrongTopics, masteryData, count = 5 } = req.body;
+  if (!provider || !config?.apiKey) return res.json({ questions: null });
+  if (!textbookContent) return res.json({ error: '缺少课本内容' });
+
+  const subjectName = { math: '数学', chinese: '汉字', cantonese: '粤语', english: '英文', gs: '常识' }[subject] || subject;
+
+  // 按掌握度排序的薄弱知识点（level < 0.6 的优先出题）
+  const weakPoints = (masteryData || [])
+    .filter(m => m.level < 0.6)
+    .sort((a, b) => a.level - b.level)
+    .map(m => m.topic);
+
+  const allFocus = [...new Set([...(wrongTopics || []), ...weakPoints])];
+
+  const systemPrompt = `你是香港一位专门培养小学生"自检习惯"和"数感逻辑"的资深高级${subjectName}助教。
+
+你的任务是根据学生提供的课本内容和掌握度数据，出针对性的复习题。
+
+核心要求：
+1. 题目必须基于提供的课本内容，确保与所学知识紧密相关
+2. 优先考察薄弱知识点（wrongTopics 中 level < 0.6 的），掌握度越低出题越多
+3. 题目难度适合 ${grade} 年级，使用繁体中文
+4. 每道题附带"常见错误提醒"（commonMistake），帮助学生避开典型陷阱
+5. 多步计算题附带"估算提示"（estimationTip），培养先估后算的习惯
+6. 题型多样化：选择题（4选1）、填空题、判断题混合
+7. 薄弱知识点出 70%，新内容出 30%
+
+输出严格 JSON 格式（不要包含其他文字）：
+{
+  "questions": [
+    {
+      "id": "REV-1",
+      "question": "题目文字",
+      "answer": "正确答案",
+      "options": ["选项A", "选项B", "选项C", "选项D"],
+      "story": "解题思路讲解（30字以内）",
+      "category": "知识点分类",
+      "commonMistake": "⚠️ 常见错误提醒",
+      "estimationTip": "💡 估算提示"
+    }
+  ]
+}`;
+
+  const userMsg = `课本内容：
+${textbookContent}
+
+学生年级：${grade}
+薄弱知识点（按优先级）：${allFocus.join('、') || '暂无记录'}
+掌握度数据：${JSON.stringify(masteryData || [])}
+出题数量：${count}
+
+请出 ${count} 道 ${subjectName} 复习题，重点考察薄弱环节。`;
+
+  const reply = await askAI(systemPrompt, userMsg, 1500);
+  if (!reply) return res.json({ questions: null });
+
+  try {
+    const jsonMatch = reply.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const result = JSON.parse(jsonMatch[0]);
+      return res.json(result);
+    }
+  } catch (e) {
+    console.error('Review parse error:', e.message);
+  }
+  res.json({ questions: null });
 });
 
 // ===== 启动 =====

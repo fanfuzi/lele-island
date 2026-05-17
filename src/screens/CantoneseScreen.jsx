@@ -8,10 +8,12 @@ import AudioGame from '../games/AudioGame';
 import RewardModal from '../components/RewardModal';
 import PetCompanion from '../components/PetCompanion';
 import MistakeAnalysis from '../components/MistakeAnalysis';
+import { logActivity } from '../utils/activityLog';
 
 const GAMES = [
   { id: 'match', label: '粤语小翻译', icon: '🔄' },
   { id: 'dialogue', label: '听力挑战', icon: '👂' },
+  { id: 'review', label: 'AI 复习', icon: '📖', review: true },
   { id: 'listening', label: '听力理解', icon: '🔊' },
   { id: 'sort', label: '分类学习', icon: '📂' },
   { id: 'scenario', label: '情景对话', icon: '🎭' },
@@ -149,6 +151,8 @@ export default function CantoneseScreen({ onBack, onNavigate }) {
     if (score / total >= 0.7) {
       dispatch({ type: 'UNLOCK_LEVEL', payload: { subject: 'cantonese', level: unlockedLevel + 1 } });
     }
+
+    logActivity({ type: 'game', subject: 'cantonese', gameType: gameMode, score: Math.round((score / total) * 100), total, correct: score });
   }
 
   function handleRewardClose() {
@@ -411,7 +415,11 @@ export default function CantoneseScreen({ onBack, onNavigate }) {
           <button
             key={g.id}
             className={`game-select-card ${g.ai ? 'game-ai' : ''}`}
-            onClick={() => g.ai ? onNavigate?.('ai-chat') : setGameMode(g.id)}
+            onClick={() => {
+              if (g.review) onNavigate?.('tutor', 'cantonese');
+              else if (g.ai) onNavigate?.('ai-chat');
+              else setGameMode(g.id);
+            }}
           >
             <span className="game-select-icon">{g.icon}</span>
             <span className="game-select-label">{g.label}</span>

@@ -5,12 +5,14 @@ import FillInGame from '../games/FillInGame';
 import OrderGame from '../games/OrderGame';
 import RewardModal from '../components/RewardModal';
 import PetCompanion from '../components/PetCompanion';
+import { logActivity } from '../utils/activityLog';
 import { getTemplateGeneratedProblems } from '../data/queryEngine';
 import { getCurriculumLevel, GRADE_MAP } from '../data/curriculum/curriculumMap';
 
 const GAMES = [
   { id: 'quiz', label: '英文闯关', icon: '🎯' },
   { id: 'fill', label: '拼写练习', icon: '✏️' },
+  { id: 'review', label: 'AI 复习', icon: '📖', review: true },
   { id: 'order', label: '句子排序', icon: '🔤' },
   { id: 'generated', label: '无限练习', icon: '♾️' },
 ];
@@ -55,6 +57,7 @@ export default function EnglishScreen({ onBack }) {
     setRewardCoins(coins);
     setShowReward(true);
     dispatch({ type: 'COMPLETE_QUEST', payload: { subject: 'english', score: coins, questionsDone: total } });
+    logActivity({ type: 'game', subject: 'english', gameType: gameMode, score: Math.round((score / total) * 100), total, correct: score });
   }
 
   function handleRewardClose() {
@@ -148,7 +151,7 @@ export default function EnglishScreen({ onBack }) {
       </div>
       <div className="game-select-list">
         {GAMES.map(g => (
-          <button key={g.id} className="game-select-card" onClick={() => setGameMode(g.id)}>
+          <button key={g.id} className={`game-select-card ${g.review ? 'game-review' : ''}`} onClick={() => g.review ? onNavigate?.('tutor', 'english') : setGameMode(g.id)}>
             <span className="game-select-icon">{g.icon}</span>
             <span className="game-select-label">{g.label}</span>
             <span className="game-select-arrow">→</span>

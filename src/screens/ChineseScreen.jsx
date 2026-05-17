@@ -11,10 +11,12 @@ import SortGame from '../games/SortGame';
 import RewardModal from '../components/RewardModal';
 import PetCompanion from '../components/PetCompanion';
 import MistakeAnalysis from '../components/MistakeAnalysis';
+import { logActivity } from '../utils/activityLog';
 
 const GAMES = [
   { id: 'match', label: '字卡配对', icon: '🀄' },
   { id: 'write', label: '写字练习', icon: '✏️' },
+  { id: 'review', label: 'AI 复习', icon: '📖', review: true },
   { id: 'grid', label: '记忆翻牌', icon: '🎴' },
   { id: 'order', label: '笔画排序', icon: '🔢' },
   { id: 'sort', label: '部首分类', icon: '📂' },
@@ -162,6 +164,8 @@ export default function ChineseScreen({ onBack, onNavigate }) {
     if (score / total >= 0.7) {
       dispatch({ type: 'UNLOCK_LEVEL', payload: { subject: 'chinese', level: unlockedLevel + 1 } });
     }
+
+    logActivity({ type: 'game', subject: 'chinese', gameType: gameMode, score: Math.round((score / total) * 100), total, correct: score });
   }
 
   // 防刷星：练习次数越多奖励越少
@@ -221,6 +225,9 @@ export default function ChineseScreen({ onBack, onNavigate }) {
         }
       });
     }
+
+    // 记录练字活动
+    logActivity({ type: 'practice', subject: 'chinese', gameType: 'writing', score: charScore });
 
     // 弹出练字奖励
     setWriteReward({ score: charScore, coins: coinReward, stars, charId, isFarmed: false });
@@ -600,9 +607,9 @@ export default function ChineseScreen({ onBack, onNavigate }) {
             key={g.id}
             className={`game-select-card ${g.ai ? 'game-ai' : ''}`}
             onClick={() => {
-              if (g.id === 'write') {
+              if (g.review) onNavigate?.('tutor', 'chinese');
+              else if (g.id === 'write') {
                 setGameMode('write');
-                // 默写模式：直接随机选字开始（跳过选字网格）
                 if (writeMode === 'dictation' && availableChars.length > 0) {
                   const randomChar = availableChars[Math.floor(Math.random() * availableChars.length)];
                   setCurrentWriteChar(randomChar);

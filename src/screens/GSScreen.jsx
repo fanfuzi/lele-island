@@ -5,11 +5,13 @@ import SortGame from '../games/SortGame';
 import GridGame from '../games/GridGame';
 import RewardModal from '../components/RewardModal';
 import PetCompanion from '../components/PetCompanion';
+import { logActivity } from '../utils/activityLog';
 import { getTemplateGeneratedProblems } from '../data/queryEngine';
 import { getCurriculumLevel, GRADE_MAP } from '../data/curriculum/curriculumMap';
 
 const GAMES = [
   { id: 'quiz', label: '常识闯关', icon: '🎯' },
+  { id: 'review', label: 'AI 复习', icon: '📖', review: true },
   { id: 'sort', label: '分类学习', icon: '📂' },
   { id: 'generated', label: '无限练习', icon: '♾️' },
 ];
@@ -40,6 +42,7 @@ export default function GSScreen({ onBack }) {
     setRewardCoins(coins);
     setShowReward(true);
     dispatch({ type: 'COMPLETE_QUEST', payload: { subject: 'gs', score: coins, questionsDone: total } });
+    logActivity({ type: 'game', subject: 'gs', gameType: gameMode, score: Math.round((score / total) * 100), total, correct: score });
   }
 
   function handleRewardClose() {
@@ -125,7 +128,7 @@ export default function GSScreen({ onBack }) {
       </div>
       <div className="game-select-list">
         {GAMES.map(g => (
-          <button key={g.id} className="game-select-card" onClick={() => setGameMode(g.id)}>
+          <button key={g.id} className={`game-select-card ${g.review ? 'game-review' : ''}`} onClick={() => g.review ? onNavigate?.('tutor', 'gs') : setGameMode(g.id)}>
             <span className="game-select-icon">{g.icon}</span>
             <span className="game-select-label">{g.label}</span>
             <span className="game-select-arrow">→</span>

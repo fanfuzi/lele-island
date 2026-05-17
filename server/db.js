@@ -44,6 +44,31 @@ function initTables() {
       updated_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
+
+    CREATE TABLE IF NOT EXISTS family_bindings (
+      parent_username TEXT NOT NULL,
+      child_username TEXT NOT NULL,
+      relationship TEXT DEFAULT 'parent',
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(parent_username, child_username)
+    );
+
+    CREATE TABLE IF NOT EXISTS activity_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL,
+      activity_type TEXT NOT NULL,
+      subject TEXT,
+      game_type TEXT,
+      score INTEGER,
+      total_count INTEGER,
+      correct_count INTEGER,
+      duration_seconds INTEGER,
+      metadata TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_activity_username ON activity_logs(username);
+    CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_logs(created_at);
   `);
 }
 

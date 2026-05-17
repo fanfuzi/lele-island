@@ -8,8 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "vite build && gh-pages -d dist -m \"Deploy $(date)\"",
-    "deploy:cf": "vite build && wrangler pages deploy dist --branch main",
-    "db:init": "wrangler d1 execute lele-island --file=server/schema.sql",
+    "deploy:cf": "vite build && npx wrangler pages deploy dist --branch main",
+    "db:init": "npx wrangler d1 execute lele-island --file=server/schema.sql",
     "server": "node server/index.js",
     "dev:server": "node server/index.js"
   },
@@ -20,7 +20,8 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "tesseract.js": "^5.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

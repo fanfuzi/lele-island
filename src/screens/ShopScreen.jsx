@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useGame } from '../store';
 import { shopItems, shopCategories } from '../data/shopItems';
+import { logActivity } from '../utils/activityLog';
 
 export default function ShopScreen({ onBack }) {
   const { state, dispatch } = useGame();
@@ -10,10 +11,11 @@ export default function ShopScreen({ onBack }) {
 
   function handleBuy(item) {
     if (state.inventory.includes(item.id)) {
-      // 已拥有，切换穿戴
       dispatch({ type: 'WEAR_ACCESSORY', payload: item.id });
+      logActivity({ type: 'shop', subject: null, gameType: 'wear', metadata: { itemId: item.id } });
     } else {
       dispatch({ type: 'BUY_ITEM', payload: item });
+      logActivity({ type: 'shop', subject: null, gameType: 'buy', metadata: { itemId: item.id, price: item.price } });
     }
   }
 

@@ -3,6 +3,7 @@ import { useGame, getPetEmoji, getPetMood } from '../store';
 import PetCompanion from '../components/PetCompanion';
 import TaskList from '../components/TaskList';
 import ProgressBar from '../components/ProgressBar';
+import { logActivity } from '../utils/activityLog';
 import { speakPet } from '../utils/speech';
 
 const zones = [
@@ -54,7 +55,10 @@ export default function HomeScreen({ onNavigate }) {
               key={zone.key}
               className={`zone-card ${isDone ? 'zone-done' : ''}`}
               style={{ '--zone-color': zone.color }}
-              onClick={() => onNavigate(zone.key)}
+              onClick={() => {
+                logActivity({ type: 'visit', subject: zone.key });
+                onNavigate(zone.key);
+              }}
             >
               <span className="zone-icon">{zone.icon}</span>
               <span className="zone-label">{zone.label}</span>

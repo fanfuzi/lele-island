@@ -133,6 +133,14 @@ export default function QuizGame({ questions, onComplete, title, showStory = tru
 
       <div className="quiz-question">{question.question}</div>
 
+      {question.estimationTip && (
+        <div className="quiz-estimation-tip">{question.estimationTip}</div>
+      )}
+
+      {question.commonMistake && (
+        <div className="quiz-common-mistake">{question.commonMistake}</div>
+      )}
+
       <div className="quiz-options">
         {shuffledOptions.map((opt, i) => {
           let btnClass = 'quiz-option';
