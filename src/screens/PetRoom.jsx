@@ -24,6 +24,7 @@ export default function PetRoom({ onBack }) {
   const [petAction, setPetAction] = useState(null);
   const [dragTarget, setDragTarget] = useState(null);
   const [dragPos, setDragPos] = useState({});
+  const dragPosRef = useRef({});
   const sceneRef = useRef(null);
 
   // 家具拖动
@@ -53,15 +54,18 @@ export default function PetRoom({ onBack }) {
       const dy = ((clientY - dragTarget.startY) / dragTarget.rect.height) * 100;
       const newX = Math.max(5, Math.min(85, dragTarget.initX + dx));
       const newY = Math.max(50, Math.min(90, dragTarget.initY + dy));
-      setDragPos({ [dragTarget.id]: { x: newX, y: newY } });
+      const pos = { x: newX, y: newY };
+      dragPosRef.current = { [dragTarget.id]: pos };
+      setDragPos(dragPosRef.current);
     }
     function onEnd() {
       if (dragTarget) {
-        const pos = dragPos[dragTarget.id] || { x: dragTarget.initX, y: dragTarget.initY };
+        const pos = dragPosRef.current[dragTarget.id] || { x: dragTarget.initX, y: dragTarget.initY };
         dispatch({ type: 'MOVE_FURNITURE', payload: { id: dragTarget.id, x: pos.x, y: pos.y } });
       }
       setDragTarget(null);
       setDragPos({});
+      dragPosRef.current = {};
     }
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onEnd);
