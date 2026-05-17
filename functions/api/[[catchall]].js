@@ -43,7 +43,20 @@ async function getUserFromToken(db, token) {
 
 // ===== AI 代理 =====
 
+/** DeepSeek 调用（支持多模态：userMessage 可以是 string 或 { text, image, mimeType }） */
 async function askDeepseek(systemPrompt, userMessage, apiKey, maxTokens = 500) {
+  // 多模态内容构建
+  let content;
+  if (typeof userMessage === 'object' && userMessage !== null && userMessage.image) {
+    const mime = userMessage.mimeType || 'image/png';
+    content = [
+      { type: 'text', text: userMessage.text || '' },
+      { type: 'image_url', image_url: { url: `data:${mime};base64,${userMessage.image}` } },
+    ];
+  } else {
+    content = typeof userMessage === 'string' ? userMessage : (userMessage?.text || JSON.stringify(userMessage));
+  }
+
   const resp = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -55,7 +68,7 @@ async function askDeepseek(systemPrompt, userMessage, apiKey, maxTokens = 500) {
       max_tokens: maxTokens,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage },
+        { role: 'user', content },
       ],
     }),
   });
@@ -500,8 +513,8 @@ export async function onRequest(context) {
       }
 
       case 'tutor/homework-diagnose': {
-        const { textContent, subject, grade, wrongRecords, masteryData } = body;
-        if (!textContent) return json({ error: '缺少作业内容' }, 400);
+        const { textContent, imageData, mimeType, subject, grade, wrongRecords, masteryData } = body;
+        if (!textContent && !imageData) return json({ error: '缺少作业内容或图片' }, 400);
         const sn = { math: '数学', chinese: '汉字', cantonese: '粤语', english: '英文', gs: '常识' }[subject] || subject;
 
         const systemPrompt = `你是香港一位专门培养小学生"自检习惯"和"数感逻辑"的资深高级${sn}助教。
@@ -525,15 +538,17 @@ export async function onRequest(context) {
   "habitChallenge": { "type": "reverse-check", "title": "反向验算", "description": "请用加法检查减法题的答案" }
 }`;
 
-        const reply = await askDeepseek(systemPrompt, `年级：${grade}\n作业：${textContent}\n薄弱：${(wrongRecords||[]).map(r=>r.category).filter(Boolean).join('、')||'暂无'}\n掌握度：${JSON.stringify(masteryData||[])}\n请诊断错误。`, apiKey, 1200);
+        const userMsgText = `年级：${grade}\n薄弱：${(wrongRecords||[]).map(r=>r.category).filter(Boolean).join('、')||'暂无'}\n掌握度：${JSON.stringify(masteryData||[])}\n作业内容：${textContent||'（见上传图片）'}\n请直接分析图片中的作业，输出诊断 JSON。`;
+        const msg = imageData ? { text: userMsgText, image: imageData, mimeType: mimeType || 'image/png' } : userMsgText;
+        const reply = await askDeepseek(systemPrompt, msg, apiKey, 1200);
         if (!reply) return json(null);
         const m = reply.match(/\{[\s\S]*\}/);
         return json(m ? JSON.parse(m[0]) : null);
       }
 
       case 'generate-review': {
-        const { subject, grade, textbookContent, wrongTopics, masteryData, count = 5 } = body;
-        if (!textbookContent) return json({ error: '缺少课本内容' }, 400);
+        const { subject, grade, textbookContent, imageData, mimeType, wrongTopics, masteryData, count = 5 } = body;
+        if (!textbookContent && !imageData) return json({ error: '缺少课本内容或图片' }, 400);
         const sn = { math: '数学', chinese: '汉字', cantonese: '粤语', english: '英文', gs: '常识' }[subject] || subject;
 
         const weakPoints = (masteryData || [])
@@ -552,7 +567,9 @@ export async function onRequest(context) {
 
 输出 JSON：{"questions":[{"id":"REV-1","question":"...","answer":"...","options":[...],"story":"解题思路","category":"知识点","commonMistake":"常见错误","estimationTip":"估算提示"}]}`;
 
-        const reply = await askDeepseek(systemPrompt, `课本内容：${textbookContent}\n年级：${grade}\n薄弱点：${allFocus.join('、')||'暂无'}\n掌握度：${JSON.stringify(masteryData||[])}\n出${count}道${sn}复习题。`, apiKey, 1500);
+        const userMsgText = `课本内容：${textbookContent||'（见上传图片）'}\n年级：${grade}\n薄弱点：${allFocus.join('、')||'暂无'}\n掌握度：${JSON.stringify(masteryData||[])}\n出${count}道${sn}复习题，直接分析图片中的课本内容。`;
+        const msg = imageData ? { text: userMsgText, image: imageData, mimeType: mimeType || 'image/png' } : userMsgText;
+        const reply = await askDeepseek(systemPrompt, msg, apiKey, 1500);
         if (!reply) return json({ questions: null });
         const m = reply.match(/\{[\s\S]*\}/);
         return json(m ? JSON.parse(m[0]) : { questions: null });

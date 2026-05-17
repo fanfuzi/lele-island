@@ -307,6 +307,18 @@ async function askClaude(systemPrompt, userMessage, maxTokens) {
 }
 
 async function askDeepseek(systemPrompt, userMessage, maxTokens) {
+  // 支持多模态：userMessage 可以是字符串或 { text, image, mimeType } 对象
+  let content;
+  if (typeof userMessage === 'object' && userMessage !== null && userMessage.image) {
+    const mime = userMessage.mimeType || 'image/png';
+    content = [
+      { type: 'text', text: userMessage.text || '' },
+      { type: 'image_url', image_url: { url: `data:${mime};base64,${userMessage.image}` } },
+    ];
+  } else {
+    content = typeof userMessage === 'string' ? userMessage : (userMessage?.text || JSON.stringify(userMessage));
+  }
+
   const resp = await fetch(`${config.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: config.headers(config.apiKey),
@@ -315,7 +327,7 @@ async function askDeepseek(systemPrompt, userMessage, maxTokens) {
       max_tokens: maxTokens,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage },
+        { role: 'user', content },
       ],
     }),
   });
@@ -665,17 +677,11 @@ ${textContent || '（见上传图片）'}
 
 请分析这份作业中的错误，输出诊断 JSON。`;
 
-  let reply;
-  if (imageData && provider === 'anthropic') {
-    // 有图片且用 Claude → 直接视觉分析，不依赖 OCR
-    reply = await askClaude(systemPrompt, {
-      text: userMsgText,
-      image: imageData,
-      mimeType: mimeType || 'image/png',
-    }, 1200);
-  } else {
-    reply = await askAI(systemPrompt, userMsgText, 1200);
-  }
+  // 有图片 → 直接视觉分析，不依赖 OCR
+  const msg = imageData
+    ? { text: userMsgText, image: imageData, mimeType: mimeType || 'image/png' }
+    : userMsgText;
+  const reply = await askAI(systemPrompt, msg, 1200);
   if (!reply) return res.json(null);
 
   try {
@@ -745,17 +751,11 @@ ${textbookContent || '（见上传图片）'}
 
 请出 ${count} 道 ${subjectName} 复习题，重点考察薄弱环节。`;
 
-  let reply;
-  if (imageData && provider === 'anthropic') {
-    // 有图片且用 Claude → 直接看课本图片出题
-    reply = await askClaude(systemPrompt, {
-      text: userMsgText,
-      image: imageData,
-      mimeType: mimeType || 'image/png',
-    }, 1500);
-  } else {
-    reply = await askAI(systemPrompt, userMsgText, 1500);
-  }
+  // 有图片 → AI 直接看课本图片出题
+  const msg = imageData
+    ? { text: userMsgText, image: imageData, mimeType: mimeType || 'image/png' }
+    : userMsgText;
+  const reply = await askAI(systemPrompt, msg, 1500);
   if (!reply) return res.json({ questions: null });
 
   try {
