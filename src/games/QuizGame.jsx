@@ -10,6 +10,15 @@ function shuffleArray(arr) {
   return shuffled;
 }
 
+// 规范化答案比较：支持文本值和索引值两种格式
+function answerMatches(selected, question) {
+  if (selected === question.answer) return true;
+  // AI 有时返回索引（数字）作为答案
+  const idx = Number(question.answer);
+  if (!isNaN(idx) && question.options && question.options[idx] === selected) return true;
+  return false;
+}
+
 /**
  * 选择题游戏组件
  * Props:
@@ -40,7 +49,7 @@ export default function QuizGame({ questions, onComplete, title, showStory = tru
     if (selected !== null) return;
     setSelected(option);
 
-    const isCorrect = option === question.answer;
+    const isCorrect = answerMatches(option, question);
     if (isCorrect) setScore(s => s + 1);
     onAnswer?.(isCorrect, question);
 
@@ -145,8 +154,8 @@ export default function QuizGame({ questions, onComplete, title, showStory = tru
         {shuffledOptions.map((opt, i) => {
           let btnClass = 'quiz-option';
           if (selected === opt) {
-            btnClass += opt === question.answer ? ' correct' : ' wrong';
-          } else if (selected !== null && opt === question.answer) {
+            btnClass += answerMatches(opt, question) ? ' correct' : ' wrong';
+          } else if (selected !== null && answerMatches(opt, question)) {
             btnClass += ' correct';
           }
           return (
@@ -159,7 +168,7 @@ export default function QuizGame({ questions, onComplete, title, showStory = tru
               <span className="option-label">{String.fromCharCode(65 + i)}</span>
               <span className="option-text">{opt}</span>
               {selected === opt && (
-                <span className="option-icon">{opt === question.answer ? '✓' : '✗'}</span>
+                <span className="option-icon">{answerMatches(opt, question) ? '✓' : '✗'}</span>
               )}
             </button>
           );
