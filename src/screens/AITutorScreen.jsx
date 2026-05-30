@@ -49,6 +49,9 @@ export default function AITutorScreen({ onBack, preset }) {
   const [examQuestions, setExamQuestions] = useState(null);
   const [examTitle, setExamTitle] = useState('');
 
+  // 文本输入（上传页用）
+  const [textInput, setTextInput] = useState('');
+
   // 通用
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -331,7 +334,6 @@ export default function AITutorScreen({ onBack, preset }) {
   //  渲染：上传页（支持多份内容）
   // ═══════════════════════════════════════════
   if (step === 'upload') {
-    const [textInput, setTextInput] = useState('');
     return (
       <div className="screen">
         <div className="screen-header">

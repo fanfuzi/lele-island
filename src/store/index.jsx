@@ -434,8 +434,7 @@ function gameReducer(state, action) {
 
     case 'RECORD_WRONG_ANSWER': {
       const { subject, category, questionId } = action.payload;
-      const records = state.wrongRecords[subject];
-      if (!records) return state;
+      const records = state.wrongRecords[subject] || [];
       // 避免重复记录同一题
       if (records.some(r => r.questionId === questionId)) return state;
       const newRecord = { category, questionId, timestamp: Date.now() };
