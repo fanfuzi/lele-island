@@ -22,8 +22,8 @@ function getAiConfig(env) {
     apiKey: env.SILICONFLOW_API_KEY || env.DEEPSEEK_API_KEY || '',
     baseUrl: isSiliconflow ? 'https://api.siliconflow.cn/v1' : 'https://api.deepseek.com/v1',
     defaultModel: isSiliconflow
-      ? (env.AI_VISION_MODEL || 'deepseek-vl2')
-      : 'deepseek-chat',
+      ? (env.AI_VISION_MODEL || 'Qwen/Qwen3-VL-8B-Instruct')
+      : (env.AI_MODEL || 'deepseek-chat'),
   };
 }
 

@@ -236,8 +236,8 @@ const CONFIG = {
   siliconflow: {
     apiKey: process.env.SILICONFLOW_API_KEY,
     baseUrl: 'https://api.siliconflow.cn/v1',
-    defaultModel: process.env.AI_MODEL || 'deepseek-vl2', // 默认就是看图模型
-    visionModel: process.env.AI_VISION_MODEL || 'deepseek-vl2',
+    defaultModel: process.env.AI_MODEL || 'Qwen/Qwen3-VL-8B-Instruct', // 支持看图的视觉模型
+    visionModel: process.env.AI_VISION_MODEL || 'Qwen/Qwen3-VL-8B-Instruct',
     headers: (key) => ({
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${key}`,
