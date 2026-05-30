@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { useGame, getGradeMaxLevel } from '../store';
 import QuizGame from '../games/QuizGame';
 import SortGame from '../games/SortGame';
-import GridGame from '../games/GridGame';
 import RewardModal from '../components/RewardModal';
 import PetCompanion from '../components/PetCompanion';
 import { logActivity } from '../utils/activityLog';
@@ -10,9 +9,8 @@ import { getTemplateGeneratedProblems } from '../data/queryEngine';
 import { getCurriculumLevel, GRADE_MAP } from '../data/curriculum/curriculumMap';
 
 const GAMES = [
-  { id: 'quiz', label: '常识闯关', icon: '🎯' },
-  { id: 'sort', label: '分类学习', icon: '📂' },
-  { id: 'generated', label: '无限练习', icon: '♾️' },
+  { id: 'quiz', label: '闯关挑战', icon: '🎯', desc: '选择题闯关' },
+  { id: 'generated', label: '无限练习', icon: '♾️', desc: '题目不重复' },
 ];
 
 export default function GSScreen({ onBack }) {

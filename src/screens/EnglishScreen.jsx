@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { useGame, getGradeMaxLevel } from '../store';
 import QuizGame from '../games/QuizGame';
 import FillInGame from '../games/FillInGame';
-import OrderGame from '../games/OrderGame';
 import RewardModal from '../components/RewardModal';
 import PetCompanion from '../components/PetCompanion';
 import { logActivity } from '../utils/activityLog';
@@ -10,10 +9,9 @@ import { getTemplateGeneratedProblems } from '../data/queryEngine';
 import { getCurriculumLevel, GRADE_MAP } from '../data/curriculum/curriculumMap';
 
 const GAMES = [
-  { id: 'quiz', label: '英文闯关', icon: '🎯' },
-  { id: 'fill', label: '拼写练习', icon: '✏️' },
-  { id: 'order', label: '句子排序', icon: '🔤' },
-  { id: 'generated', label: '无限练习', icon: '♾️' },
+  { id: 'quiz', label: '闯关挑战', icon: '🎯', desc: '选择题闯关' },
+  { id: 'fill', label: '拼写填空', icon: '✏️', desc: '写出正确单词' },
+  { id: 'generated', label: '无限练习', icon: '♾️', desc: '题目不重复' },
 ];
 
 export default function EnglishScreen({ onBack }) {

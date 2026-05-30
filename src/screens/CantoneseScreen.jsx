@@ -11,12 +11,10 @@ import MistakeAnalysis from '../components/MistakeAnalysis';
 import { logActivity } from '../utils/activityLog';
 
 const GAMES = [
-  { id: 'match', label: '粤语小翻译', icon: '🔄' },
-  { id: 'dialogue', label: '听力挑战', icon: '👂' },
-  { id: 'listening', label: '听力理解', icon: '🔊' },
-  { id: 'sort', label: '分类学习', icon: '📂' },
-  { id: 'scenario', label: '情景对话', icon: '🎭' },
-  { id: 'chat', label: 'AI自由对话', icon: '🤖', ai: true },
+  { id: 'match', label: '粤语翻译', icon: '🔄', desc: '普通话↔粤语' },
+  { id: 'listening', label: '听力挑战', icon: '👂', desc: '听粤语选答案' },
+  { id: 'scenario', label: '情景对话', icon: '🎭', desc: '模拟真实场景' },
+  { id: 'generated', label: '无限练习', icon: '♾️', desc: '题目不重复' },
 ];
 
 export default function CantoneseScreen({ onBack, onNavigate }) {

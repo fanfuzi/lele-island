@@ -81,10 +81,12 @@ const initialState = {
   dailyStudyMinutes: 0,
   // 今日已玩宠物时长（分钟），玩时累加
   dailyPetPlayMinutes: 0,
-  // 玩宠物前需要的学习时长（分钟）
-  minStudyMinutesToUnlockPet: 10,
-  // 每日宠物互动上限（分钟）
-  maxPetPlayMinutes: 15,
+  // 玩宠物前需要的学习时长（分钟）— 学20分钟解锁玩耍
+  minStudyMinutesToUnlockPet: 20,
+  // 每日宠物互动上限（分钟）— 每次最多玩10分钟
+  maxPetPlayMinutes: 10,
+  // 每次解锁后可玩时长（分钟）
+  playSessionMinutes: 10,
   // 上次记录学习时间的时间戳
   lastStudyTick: 0,
 };

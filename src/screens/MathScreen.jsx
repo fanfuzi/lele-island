@@ -17,16 +17,11 @@ import { getBalancedQuestions, toQuizQuestion, getTemplateGeneratedProblems } fr
 import { getCurriculumLevel, GRADE_MAP } from '../data/curriculum/curriculumMap';
 
 const GAMES = [
-  { id: 'speed', label: '口算快抢', icon: '⚡' },
-  { id: 'quiz', label: '数学闯关', icon: '🎯' },
-  { id: 'fill', label: '填空计算', icon: '✏️' },
-  { id: 'generated', label: '无限练习', icon: '♾️' },
-  { id: 'order', label: '数字排序', icon: '🔢' },
-  { id: 'grid', label: '记忆配对', icon: '🎴' },
-  { id: 'sort', label: '数字分类', icon: '📂' },
-  { id: 'step', label: '分步解题', icon: '🧩' },
-  { id: 'ai', label: 'AI智能出题', icon: '🤖', ai: true },
-  { id: 'comprehensive', label: '综合练习', icon: '📝' },
+  { id: 'speed', label: '口算快抢', icon: '⚡', desc: '限时挑战，练速度' },
+  { id: 'quiz', label: '闯关挑战', icon: '🎯', desc: '选择题闯关' },
+  { id: 'fill', label: '填空计算', icon: '✏️', desc: '写出答案' },
+  { id: 'generated', label: '无限练习', icon: '♾️', desc: '题目不重复' },
+  { id: 'ai', label: 'AI出题', icon: '🤖', desc: 'AI智能出题', ai: true },
 ];
 
 export default function MathScreen({ onBack }) {

@@ -1264,6 +1264,108 @@ body {
   color: #E65100;
   border: 1px solid #FFB74D;
 }
+.hint-bar-ok {
+  background: #E8F5E9;
+  color: #2E7D32;
+  border: 1px solid #81C784;
+}
+
+/* 宠物说话气泡 */
+.pet-speech-bubble {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  z-index: 10;
+  animation: bubbleIn 0.3s ease-out;
+}
+.pet-speech-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid white;
+}
+@keyframes bubbleIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px) scale(0.9); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+/* 每日登录奖励 */
+.daily-gift-popup {
+  position: absolute;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #FFD700, #FFA000);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 16px;
+  font-weight: 700;
+  z-index: 20;
+  animation: giftBounce 0.5s ease-out;
+  box-shadow: 0 4px 15px rgba(255,165,0,0.4);
+}
+@keyframes giftBounce {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.5) translateY(20px); }
+  60% { transform: translateX(-50%) scale(1.1) translateY(-5px); }
+  100% { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
+}
+
+/* 玩耍活动 */
+.pet-play-section {
+  padding: 10px 16px;
+  background: white;
+  margin: 0 16px 8px;
+  border-radius: var(--radius);
+}
+.play-section-title {
+  font-size: 14px;
+  color: var(--text-light);
+  margin-bottom: 8px;
+  text-align: center;
+}
+.play-activities {
+  display: flex;
+  gap: 8px;
+}
+.play-activity-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  border: 2px solid var(--pink-light);
+  border-radius: var(--radius-sm);
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font);
+}
+.play-activity-btn:active:not(:disabled) { transform: scale(0.95); }
+.play-activity-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.play-activity-icon { font-size: 24px; }
+.play-activity-name { font-size: 12px; font-weight: 600; }
+
+/* 互动按钮改进 */
+.action-icon { font-size: 20px; }
+.action-label { font-size: 13px; }
+.action-cost { font-size: 11px; color: #999; }
+.action-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .customize-panel { background: white; border-radius: var(--radius); padding: 14px; }
 .customize-panel h3 { font-size: 15px; margin-bottom: 10px; }
 .pet-type-grid { display: flex; gap: 8px; }

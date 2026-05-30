@@ -1,9 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
-import { useGame, getPetEmoji } from '../store';
+import { useGame, getPetEmoji, getPetMood } from '../store';
 import { shopItems } from '../data/shopItems';
 import ProgressBar from '../components/ProgressBar';
 import PetCompanion from '../components/PetCompanion';
 import { logActivity } from '../utils/activityLog';
+
+// 宠物随机说话
+const PET_SAYINGS = {
+  happy: ['今天好開心呀！', '有你陪真好！', '一齊玩啦！', '你係我最好嘅朋友！', '好幸福呀～'],
+  hungry: ['肚仔餓啦…', '有冇嘢食呀？', '想食嘢～', '好想食零食呀！'],
+  sad: ['悶悶地…', '陪我玩吓啦', '想你陪我', '唔開心…'],
+  normal: ['你好呀！', '今日學咗啲咩？', '加油呀！', '你叻仔！', '一起努力啦！'],
+  sleepy: ['好眼瞓…', '想瞓覺覺', 'zzZ…'],
+};
+
+// 每日首次登录奖励
+const DAILY_LOGIN_KEY = 'lele-daily-login';
 
 const PET_TYPES = [
   { type: 'cat', emoji: '🐱', name: '小猫', color: '#FFB5C2' },
@@ -23,16 +35,41 @@ export default function PetRoom({ onBack }) {
   const [nameInput, setNameInput] = useState(pet.name);
   const [petAction, setPetAction] = useState(null);
   const [dragPos, setDragPos] = useState({});
+  const [petSpeech, setPetSpeech] = useState('');
+  const [dailyGift, setDailyGift] = useState(null);
   const dragRef = useRef(null);
   const playTimerRef = useRef(null);
 
   // 家长控制：学习解锁 & 玩宠物上限
   const studyMinutes = state.dailyStudyMinutes || 0;
   const playMinutes = state.dailyPetPlayMinutes || 0;
-  const minStudy = state.minStudyMinutesToUnlockPet || 10;
-  const maxPlay = state.maxPetPlayMinutes || 15;
+  const minStudy = state.minStudyMinutesToUnlockPet || 20;
+  const maxPlay = state.maxPetPlayMinutes || 10;
   const canPlay = studyMinutes >= minStudy;
   const playTimeRemaining = Math.max(0, maxPlay - playMinutes);
+  const petMood = getPetMood(state);
+
+  // 每日首次登录奖励
+  useEffect(() => {
+    const today = new Date().toDateString();
+    const lastLogin = localStorage.getItem(DAILY_LOGIN_KEY);
+    if (lastLogin !== today) {
+      localStorage.setItem(DAILY_LOGIN_KEY, today);
+      const bonus = Math.floor(Math.random() * 3) + 1; // 1-3 coins
+      dispatch({ type: 'ADD_COINS', payload: bonus });
+      setDailyGift(bonus);
+      setTimeout(() => setDailyGift(null), 4000);
+    }
+  }, []);
+
+  // 宠物随机说话
+  useEffect(() => {
+    const sayings = PET_SAYINGS[petMood] || PET_SAYINGS.normal;
+    const randomSaying = sayings[Math.floor(Math.random() * sayings.length)];
+    setPetSpeech(randomSaying);
+    const timer = setTimeout(() => setPetSpeech(''), 6000);
+    return () => clearTimeout(timer);
+  }, [petMood]);
   const sceneRef = useRef(null);
 
   // 家具拖动（全部用 ref 避免闭包过期问题）
@@ -87,19 +124,26 @@ export default function PetRoom({ onBack }) {
     dispatch({ type: 'FEED_PET', payload: 20 });
     dispatch({ type: 'ADD_COINS', payload: -2 });
     setPetAction('eating');
+    setPetSpeech('好好食！😋');
     logActivity({ type: 'pet', subject: null, gameType: 'feed' });
     setTimeout(() => setPetAction(null), 2000);
   }
 
-  function handlePlay() {
-    // 检查是否需要先学习
-    if (!canPlay) return;
-    // 检查是否还有玩耍时间
-    if (playTimeRemaining <= 0) return;
+  // 多种玩耍方式
+  const playActivities = [
+    { name: '抛波波', icon: '⚽', msg: '接住啦！', happiness: 12 },
+    { name: '捉迷藏', icon: '🙈', msg: '搵到你啦！', happiness: 15 },
+    { name: '搔痒痒', icon: '🤭', msg: '哈哈哈！好癢！', happiness: 10 },
+    { name: '跳舞', icon: '💃', msg: '一齊跳啦！', happiness: 14 },
+  ];
 
-    dispatch({ type: 'PLAY_WITH_PET', payload: 15 });
+  function handlePlay(activity) {
+    if (!canPlay || playTimeRemaining <= 0) return;
+    const act = activity || playActivities[Math.floor(Math.random() * playActivities.length)];
+    dispatch({ type: 'PLAY_WITH_PET', payload: act.happiness });
     dispatch({ type: 'USE_PET_PLAY_TIME', payload: 1 });
     setPetAction('playing');
+    setPetSpeech(act.msg);
     logActivity({ type: 'pet', subject: null, gameType: 'play' });
     setTimeout(() => setPetAction(null), 2000);
   }
@@ -107,8 +151,17 @@ export default function PetRoom({ onBack }) {
   function handleClean() {
     dispatch({ type: 'CLEAN_PET', payload: 25 });
     setPetAction('cleaning');
+    setPetSpeech('好舒服呀～🧼');
     logActivity({ type: 'pet', subject: null, gameType: 'clean' });
     setTimeout(() => setPetAction(null), 2000);
+  }
+
+  function handleTap() {
+    // 点击宠物获得小互动
+    const tapSayings = ['嘿嘿！', '做咩呀？', '嘻嘻～', '你叫我呀？', '摸摸我啦！'];
+    setPetSpeech(tapSayings[Math.floor(Math.random() * tapSayings.length)]);
+    dispatch({ type: 'PLAY_WITH_PET', payload: 2 });
+    setTimeout(() => setPetSpeech(''), 3000);
   }
 
   function handlePetChange(newType) {
@@ -151,6 +204,13 @@ export default function PetRoom({ onBack }) {
         <div className="pet-room-wall" />
         <div className="pet-room-floor" />
 
+        {/* 每日登录奖励 */}
+        {dailyGift && (
+          <div className="daily-gift-popup">
+            🎁 每日奖励 +{dailyGift} 🪙
+          </div>
+        )}
+
         {/* 房间家具（可拖动） */}
         {furniture.map(f => {
           const item = shopItems.find(i => i.id === f.id);
@@ -170,7 +230,11 @@ export default function PetRoom({ onBack }) {
         })}
 
         {/* 宠物 */}
-        <div className="pet-room-avatar">
+        <div className="pet-room-avatar" onClick={handleTap}>
+          {/* 说话气泡 */}
+          {petSpeech && (
+            <div className="pet-speech-bubble">{petSpeech}</div>
+          )}
           <PetCompanion
             size="large"
             mood={petAction ? 'happy' : pet.hunger < 30 ? 'hungry' : pet.happiness < 30 ? 'sad' : 'normal'}
@@ -234,37 +298,53 @@ export default function PetRoom({ onBack }) {
       {/* 互动按钮 */}
       <div className="pet-actions">
         <button className="action-btn" onClick={handleFeed} disabled={state.coins < 2}>
-          🍪 喂食
-        </button>
-        <button
-          className="action-btn"
-          onClick={handlePlay}
-          disabled={!canPlay || playTimeRemaining <= 0}
-          title={!canPlay ? `需要先学习${minStudy}分钟才能玩耍` : playTimeRemaining <= 0 ? '今日玩耍时间已用完' : ''}
-        >
-          🎾 {!canPlay ? '🔒 玩耍' : playTimeRemaining <= 0 ? '玩耍(已满)' : '玩耍'}
+          <span className="action-icon">🍪</span>
+          <span className="action-label">喂食</span>
+          <span className="action-cost">2🪙</span>
         </button>
         <button className="action-btn" onClick={handleClean} disabled={pet.cleanliness >= 95}>
-          🧼 清洁
+          <span className="action-icon">🧼</span>
+          <span className="action-label">清洁</span>
         </button>
         <button className="action-btn" onClick={() => setShowFurniture(!showFurniture)}>
-          🛋️ 家具
+          <span className="action-icon">🛋️</span>
+          <span className="action-label">家具</span>
         </button>
+      </div>
+
+      {/* 玩耍活动（学习达标后解锁） */}
+      <div className="pet-play-section">
+        <h3 className="play-section-title">
+          {canPlay ? '🎾 和宠物一起玩' : '🔒 先学习才能玩哦'}
+        </h3>
+        <div className="play-activities">
+          {playActivities.map((act, i) => (
+            <button
+              key={i}
+              className="play-activity-btn"
+              onClick={() => handlePlay(act)}
+              disabled={!canPlay || playTimeRemaining <= 0}
+            >
+              <span className="play-activity-icon">{act.icon}</span>
+              <span className="play-activity-name">{act.name}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* 家长控制提示 */}
       <div className="pet-parent-hint">
         {!canPlay ? (
           <div className="hint-bar hint-bar-warn">
-            📚 今日已学习 {studyMinutes}/{minStudy} 分钟，学习达标后才能和宠物玩耍哦！
+            📚 已学习 {studyMinutes}/{minStudy} 分钟 · 还差 {minStudy - studyMinutes} 分钟就能和{pet.name}玩啦！
           </div>
-        ) : playTimeRemaining <= 3 ? (
+        ) : playTimeRemaining <= 0 ? (
           <div className="hint-bar hint-bar-warn">
-            ⏰ 今日玩耍时间还剩 {playTimeRemaining} 分钟（共 {maxPlay} 分钟）
+            ⏰ 今天玩够啦！{pet.name}需要休息了，明天再来吧！
           </div>
         ) : (
-          <div className="hint-bar">
-            📚 已学习 {studyMinutes} 分钟 · 🎾 今日还能玩 {playTimeRemaining}/{maxPlay} 分钟
+          <div className="hint-bar hint-bar-ok">
+            ✅ 学习达标！还能和{pet.name}玩 {playTimeRemaining} 分钟
           </div>
         )}
       </div>

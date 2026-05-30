@@ -14,12 +14,10 @@ import MistakeAnalysis from '../components/MistakeAnalysis';
 import { logActivity } from '../utils/activityLog';
 
 const GAMES = [
-  { id: 'match', label: '字卡配对', icon: '🀄' },
-  { id: 'write', label: '写字练习', icon: '✏️' },
-  { id: 'grid', label: '记忆翻牌', icon: '🎴' },
-  { id: 'order', label: '笔画排序', icon: '🔢' },
-  { id: 'sort', label: '部首分类', icon: '📂' },
-  { id: 'ai-practice', label: 'AI智能练字', icon: '🤖', ai: true },
+  { id: 'match', label: '字卡配对', icon: '🀄', desc: '配对认识繁体字' },
+  { id: 'write', label: '写字练习', icon: '✏️', desc: '学写汉字' },
+  { id: 'sort', label: '部首分类', icon: '📂', desc: '按部首归类' },
+  { id: 'generated', label: '无限练习', icon: '♾️', desc: '题目不重复' },
 ];
 
 export default function ChineseScreen({ onBack }) {

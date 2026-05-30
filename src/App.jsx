@@ -309,7 +309,7 @@ function AppContent() {
                     type="number"
                     min="0"
                     max="120"
-                    value={state.minStudyMinutesToUnlockPet || 10}
+                    value={state.minStudyMinutesToUnlockPet || 20}
                     onChange={e => dispatch({ type: 'UPDATE_PET_PLAY_SETTINGS', payload: { minStudyMinutesToUnlockPet: Math.max(0, parseInt(e.target.value) || 0) } })}
                     style={{ width: 60, padding: '4px 8px', border: '2px solid var(--pink-light)', borderRadius: 'var(--radius-sm)', fontSize: 14, textAlign: 'center' }}
                   />
@@ -322,7 +322,7 @@ function AppContent() {
                     type="number"
                     min="0"
                     max="120"
-                    value={state.maxPetPlayMinutes || 15}
+                    value={state.maxPetPlayMinutes || 10}
                     onChange={e => dispatch({ type: 'UPDATE_PET_PLAY_SETTINGS', payload: { maxPetPlayMinutes: Math.max(0, parseInt(e.target.value) || 0) } })}
                     style={{ width: 60, padding: '4px 8px', border: '2px solid var(--pink-light)', borderRadius: 'var(--radius-sm)', fontSize: 14, textAlign: 'center' }}
                   />
