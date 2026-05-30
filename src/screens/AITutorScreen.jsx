@@ -126,7 +126,7 @@ export default function AITutorScreen({ onBack, preset }) {
 
     try {
       const result = await classifyContent({
-        items: items.map(i => ({ text: i.text || undefined, imageData: i.imageData || undefined })),
+        items: items.map(i => ({ text: i.text || undefined, imageData: i.imageData || undefined, mimeType: i.mimeType || undefined })),
         subject, grade,
       });
 

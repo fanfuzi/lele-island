@@ -44,10 +44,11 @@ async function getUserFromToken(db, token) {
 // ===== AI 代理 =====
 
 /** DeepSeek 调用（支持多模态：userMessage 可以是 string 或 { text, image, mimeType }） */
-async function askDeepseek(systemPrompt, userMessage, apiKey, maxTokens = 500) {
+async function askDeepseek(systemPrompt, userMessage, apiKey, maxTokens = 500, visionModel) {
+  const hasImage = typeof userMessage === 'object' && userMessage !== null && userMessage.image;
   // 多模态内容构建
   let content;
-  if (typeof userMessage === 'object' && userMessage !== null && userMessage.image) {
+  if (hasImage) {
     const mime = userMessage.mimeType || 'image/png';
     content = [
       { type: 'text', text: userMessage.text || '' },
@@ -57,6 +58,11 @@ async function askDeepseek(systemPrompt, userMessage, apiKey, maxTokens = 500) {
     content = typeof userMessage === 'string' ? userMessage : (userMessage?.text || JSON.stringify(userMessage));
   }
 
+  // 有图片时使用视觉模型（可通过 env 配置），否则用默认 deepseek-chat
+  // deepseek-chat 不支持看图，如需请设置 AI_VISION_MODEL=deepseek-vl2
+  const textModel = 'deepseek-chat';
+  const model = hasImage ? (visionModel || textModel) : textModel;
+
   const resp = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -64,7 +70,7 @@ async function askDeepseek(systemPrompt, userMessage, apiKey, maxTokens = 500) {
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'deepseek-chat',
+      model,
       max_tokens: maxTokens,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -91,6 +97,7 @@ export async function onRequest(context) {
   const path = url.pathname.replace('/api/', '');
   const method = request.method;
   const apiKey = env.DEEPSEEK_API_KEY || 'sk-d99be362daee4f828717e1d182ae7973';
+  const visionModel = env.AI_VISION_MODEL || 'deepseek-chat'; // deepseek-chat 不支持看图，如需请设 deepseek-vl2
   const db = env.DB; // D1 binding，没有则降级
 
   // 健康检查
@@ -540,7 +547,7 @@ export async function onRequest(context) {
 
         const userMsgText = `年级：${grade}\n薄弱：${(wrongRecords||[]).map(r=>r.category).filter(Boolean).join('、')||'暂无'}\n掌握度：${JSON.stringify(masteryData||[])}\n作业内容：${textContent||'（见上传图片）'}\n请直接分析图片中的作业，输出诊断 JSON。`;
         const msg = imageData ? { text: userMsgText, image: imageData, mimeType: mimeType || 'image/png' } : userMsgText;
-        const reply = await askDeepseek(systemPrompt, msg, apiKey, 1200);
+        const reply = await askDeepseek(systemPrompt, msg, apiKey, 1200, visionModel);
         if (!reply) return json(null);
         const m = reply.match(/\{[\s\S]*\}/);
         return json(m ? JSON.parse(m[0]) : null);
@@ -569,10 +576,134 @@ export async function onRequest(context) {
 
         const userMsgText = `课本内容：${textbookContent||'（见上传图片）'}\n年级：${grade}\n薄弱点：${allFocus.join('、')||'暂无'}\n掌握度：${JSON.stringify(masteryData||[])}\n出${count}道${sn}复习题，直接分析图片中的课本内容。`;
         const msg = imageData ? { text: userMsgText, image: imageData, mimeType: mimeType || 'image/png' } : userMsgText;
-        const reply = await askDeepseek(systemPrompt, msg, apiKey, 1500);
+        const reply = await askDeepseek(systemPrompt, msg, apiKey, 1500, visionModel);
         if (!reply) return json({ questions: null });
         const m = reply.match(/\{[\s\S]*\}/);
         return json(m ? JSON.parse(m[0]) : { questions: null });
+      }
+
+      case 'tutor/classify': {
+        const { items, subject, grade } = body;
+        if (!items?.length) return json({ error: '缺少上传内容' }, 400);
+        const sn = { math: '数学', chinese: '中文', cantonese: '粤语', english: '英文', gs: '常识' }[subject] || subject;
+
+        const systemPrompt = `你是香港一位资深${sn}教师，擅长分析学生的学习材料。
+你的任务：将学生上传的多份内容自动分类分组，并分析每组的难度和涉及的知识点。
+分类标准：
+- "homework" = 日常练习、课后作业
+- "exam" = 测验、考试、小测
+- "textbook" = 课本内容、讲义、笔记
+- "mistakes" = 错题、做错的题目
+- "concept" = 概念定义、公式、定理
+输出严格 JSON 格式（不要包含其他文字）：
+{
+  "groups": [
+    {
+      "id": "G1",
+      "type": "homework|exam|textbook|mistakes|concept",
+      "label": "分组名称（简短中文）",
+      "itemIndices": [0, 2],
+      "topics": ["涉及的知识点1", "知识点2"],
+      "difficulty": "基础|中等|偏难",
+      "questionCount": 5,
+      "summary": "一句话总结这组内容"
+    }
+  ],
+  "overallAnalysis": {
+    "weakTopics": ["薄弱知识点1", "薄弱知识点2"],
+    "difficulty": "整体难度评估",
+    "suggestion": "学习建议"
+  }
+}`;
+
+        const itemsText = items.map((item, i) => {
+          if (item.text) return `[${i + 1}] 文本：${item.text.slice(0, 300)}`;
+          if (item.imageData) return `[${i + 1}] 图片：`;
+          return `[${i + 1}] （空）`;
+        }).join('\n');
+
+        const userMsgText = `科目：${sn}
+年级：${grade}
+共 ${items.length} 份内容：
+
+${itemsText}
+
+请自动分析图片中的内容进行分组。直接看图片，不要依赖 OCR 文本。`;
+
+        const hasImages = items.some(i => i.imageData);
+        const firstImg = items.find(i => i.imageData);
+        const msg = hasImages && firstImg
+          ? { text: userMsgText, image: firstImg.imageData, mimeType: firstImg.mimeType || 'image/png' }
+          : userMsgText;
+
+        const reply = await askDeepseek(systemPrompt, msg, apiKey, 1200, visionModel);
+        if (!reply) return json({ groups: null });
+        const jm = reply.match(/\{[\s\S]*\}/);
+        return json(jm ? JSON.parse(jm[0]) : { groups: null });
+      }
+
+      case 'tutor/generate-exam': {
+        const { subject, grade, groups, weakTopics, masteryData, count = 10 } = body;
+        if (!groups?.length) return json({ error: '缺少分组内容' }, 400);
+        const sn = { math: '数学', chinese: '中文', cantonese: '粤语', english: '英文', gs: '常识' }[subject] || subject;
+
+        const groupsText = groups.map((g, i) => {
+          const content = g.items?.map(item => item.text || '（图片）').join('；') || g.summary || '';
+          return `分组${i + 1}：${g.label}（${g.type}，${g.difficulty}）\n涉及：${(g.topics || []).join('、')}\n内容摘要：${content.slice(0, 500)}`;
+        }).join('\n\n');
+
+        const weakPoints = (masteryData || [])
+          .filter(m => m.level < 0.6).sort((a, b) => a.level - b.level).map(m => m.topic);
+        const allFocus = [...new Set([...(weakTopics || []), ...weakPoints])];
+
+        const systemPrompt = `你是香港一位资深${sn}教师，擅长根据学生的学习情况出针对性的模拟试卷。
+要求：
+1. 题目必须紧密围绕选中分组的知识点
+2. 薄弱知识点占 60% 题量，巩固内容占 40%
+3. 难度梯度：基础 40% + 中等 40% + 挑战 20%
+4. 使用繁体中文，适合 ${grade} 年级
+5. 每题附带知识点标签和难度标签
+输出严格 JSON 格式：
+{
+  "examTitle": "模拟试卷名称",
+  "questions": [
+    {
+      "id": "EX-1",
+      "question": "题目文字",
+      "answer": "正确答案",
+      "options": ["A", "B", "C", "D"],
+      "category": "知识点",
+      "difficulty": 1-3,
+      "hint": "解题提示"
+    }
+  ],
+  "summary": {
+    "topics": ["覆盖的知识点"],
+    "weakFocus": ["重点考察的薄弱点"],
+    "tip": "考试建议"
+  }
+}`;
+
+        const userMsgText = `科目：${sn}
+年级：${grade}
+选中分组内容：
+${groupsText}
+
+学生薄弱知识点：${allFocus.join('、') || '暂无'}
+掌握度数据：${JSON.stringify(masteryData || [])}
+
+请生成 ${count} 道模拟试卷题目。请直接分析图片中的原始内容出题，不要依赖 OCR 文本。`;
+
+        const allItems = groups.flatMap(g => g.items || []).filter(Boolean);
+        const firstImageItem = allItems.find(item => item.imageData);
+        const msg = firstImageItem
+          ? { text: userMsgText, image: firstImageItem.imageData, mimeType: firstImageItem.mimeType || 'image/png' }
+          : userMsgText;
+
+        const reply = await askDeepseek(systemPrompt, msg, apiKey, 2000, visionModel);
+        if (!reply) return json({ questions: null });
+        const jm = reply.match(/\{[\s\S]*\}/);
+        return json(jm ? JSON.parse(jm[0]) : { questions: null });
       }
 
       default:

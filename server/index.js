@@ -7,6 +7,7 @@
  *   ANTHROPIC_API_KEY=sk-ant-xxx   Claude API Key
  *   DEEPSEEK_API_KEY=sk-xxx       Deepseek API Key
  *   AI_MODEL=claude-sonnet-4-20250514  (Claude模型, 可选)
+ *   AI_VISION_MODEL=deepseek-vl2    (视觉模型，处理图片时使用，默认同 AI_MODEL)
  *
  * 启动:
  *   DEEPSEEK_API_KEY=sk-xxx node server/index.js
@@ -223,6 +224,7 @@ const CONFIG = {
     apiKey: process.env.DEEPSEEK_API_KEY,
     baseUrl: 'https://api.deepseek.com/v1',
     defaultModel: process.env.AI_MODEL || 'deepseek-chat',
+    visionModel: process.env.AI_VISION_MODEL || 'deepseek-chat', // deepseek-chat 不支持看图，如需请设为 deepseek-vl2
     headers: (key) => ({
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${key}`,
@@ -308,8 +310,9 @@ async function askClaude(systemPrompt, userMessage, maxTokens) {
 
 async function askDeepseek(systemPrompt, userMessage, maxTokens) {
   // 支持多模态：userMessage 可以是字符串或 { text, image, mimeType } 对象
+  const hasImage = typeof userMessage === 'object' && userMessage !== null && userMessage.image;
   let content;
-  if (typeof userMessage === 'object' && userMessage !== null && userMessage.image) {
+  if (hasImage) {
     const mime = userMessage.mimeType || 'image/png';
     content = [
       { type: 'text', text: userMessage.text || '' },
@@ -319,11 +322,14 @@ async function askDeepseek(systemPrompt, userMessage, maxTokens) {
     content = typeof userMessage === 'string' ? userMessage : (userMessage?.text || JSON.stringify(userMessage));
   }
 
+  // 有图片时使用视觉模型（如 deepseek-vl2），否则用默认模型
+  const model = hasImage && config.visionModel ? config.visionModel : config.defaultModel;
+
   const resp = await fetch(`${config.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: config.headers(config.apiKey),
     body: JSON.stringify({
-      model: config.defaultModel,
+      model,
       max_tokens: maxTokens,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -815,12 +821,17 @@ ${itemsText}
 
 请自动分类分组并分析。`;
 
-  // 构建消息（支持图片）
+  // 构建消息（支持多张图片）
   const hasImages = items.some(i => i.imageData);
   let msg;
   if (hasImages) {
-    const images = items.filter(i => i.imageData).map(i => i.imageData);
-    msg = { text: userMsgText, image: images[0], mimeType: 'image/png' };
+    // 有图片时，把文本和第一张图片一起发给 AI（视觉模型）
+    const firstImageItem = items.find(i => i.imageData);
+    msg = {
+      text: userMsgText + '\n\n注意：请直接分析图片中的内容，不要依赖OCR文本。',
+      image: firstImageItem.imageData,
+      mimeType: firstImageItem.mimeType || 'image/png',
+    };
   } else {
     msg = userMsgText;
   }
@@ -852,6 +863,10 @@ app.post('/api/tutor/generate-exam', async (req, res) => {
     const content = g.items?.map(item => item.text || '（图片）').join('；') || g.summary || '';
     return `分组${i + 1}：${g.label}（${g.type}，${g.difficulty}）\n涉及：${(g.topics || []).join('、')}\n内容摘要：${content.slice(0, 500)}`;
   }).join('\n\n');
+
+  // 检查是否有图片需要发送给 AI
+  const allItems = groups.flatMap(g => g.items || []).filter(Boolean);
+  const firstImageItem = allItems.find(item => item.imageData);
 
   const weakPoints = (masteryData || [])
     .filter(m => m.level < 0.6)
@@ -898,9 +913,14 @@ ${groupsText}
 学生薄弱知识点：${allFocus.join('、') || '暂无'}
 掌握度数据：${JSON.stringify(masteryData || [])}
 
-请生成 ${count} 道模拟试卷题目。`;
+请生成 ${count} 道模拟试卷题目。请直接分析图片中的原始内容出题，不要依赖 OCR 文本。`;
 
-  const reply = await askAI(systemPrompt, userMsgText, 2000);
+  // 如果有图片，把图片也传给 AI（视觉模型可以直接看懂图片内容）
+  const msg = firstImageItem
+    ? { text: userMsgText, image: firstImageItem.imageData, mimeType: firstImageItem.mimeType || 'image/png' }
+    : userMsgText;
+
+  const reply = await askAI(systemPrompt, msg, 2000);
   if (!reply) return res.json({ questions: null });
 
   try {
