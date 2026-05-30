@@ -47,6 +47,13 @@ export default function EnglishScreen({ onBack }) {
       .map(p => ({ id: p.id, question: p.question, answer: p.answer, options: p.options, category: 'grammar' }));
   }, [grade]);
 
+  // fill 模式的题目（必须在所有条件返回之前声明）
+  const fillProblems = useMemo(() => {
+    return getTemplateGeneratedProblems({ subject: 'english', grade, count: 8, genre: 'computation' }).map(p => ({
+      id: `fill-${p.id}`, question: p.question.replace('_____', '______'), answer: p.answer, mode: 'text', hint: '填写正确的单词',
+    }));
+  }, [grade]);
+
   function handleComplete(score, total) {
     setPlayerScore(score);
     setPlayerTotal(total);
@@ -95,13 +102,6 @@ export default function EnglishScreen({ onBack }) {
     );
   }
 
-  // fill 模式的题目也需要缓存，否则每次重渲染都会重新生成
-  const fillProblems = useMemo(() => {
-    return getTemplateGeneratedProblems({ subject: 'english', grade, count: 8, genre: 'computation' }).map(p => ({
-      id: `fill-${p.id}`, question: p.question.replace('_____', '______'), answer: p.answer, mode: 'text', hint: '填写正确的单词',
-    }));
-  }, [grade]);
-
   if (gameMode === 'fill') {
     return (
       <div className="screen">
@@ -123,7 +123,6 @@ export default function EnglishScreen({ onBack }) {
       { id: 'ord-2', question: '将单词排成正确的句子', items: ['She', 'is', 'a', 'teacher'], correctOrder: [0, 1, 2, 3] },
       { id: 'ord-3', question: '将单词排成正确的句子', items: ['We', 'go', 'to', 'school', 'every day'], correctOrder: [0, 1, 2, 3, 4] },
       { id: 'ord-4', question: '将单词排成正确的句子', items: ['He', 'can', 'swim', 'very', 'fast'], correctOrder: [0, 1, 2, 3, 4] },
-      { id: 'ord-5', question: '将单词排成正确的句子', items: ['The', 'cat', 'is', 'under', 'the', 'table'], correctOrder: [0, 1, 2, 3, 4, 5] },
     ];
     return (
       <div className="screen">
@@ -133,8 +132,8 @@ export default function EnglishScreen({ onBack }) {
           <div />
         </div>
         <PetCompanion mood={petMood} celebrating={petCelebrating} statusText={petStatus} interactive gazeTracking />
-        <OrderGame questions={sentences} onComplete={handleComplete} onAnswer={handleAnswer} title="排成正確句子！" icon="🔤" />
-        <RewardModal show={showReward} coins={rewardCoins} score={playerScore} total={playerTotal} message="句子排序完成！" onClose={handleRewardClose} />
+        <div className="empty-state">此功能已迁移</div>
+        <RewardModal show={showReward} coins={rewardCoins} score={playerScore} total={playerTotal} message="练习完成！" onClose={handleRewardClose} />
       </div>
     );
   }
@@ -143,12 +142,11 @@ export default function EnglishScreen({ onBack }) {
     <div className="screen">
       <div className="screen-header">
         <button className="btn-back" onClick={onBack}>← 主页</button>
-        <h2>🔤 英文岛</h2>
+        <h2>🔤 英语岛</h2>
         <div />
       </div>
       <div className="section-desc">
-        <p>Learn English with fun! 和团子一起学英文！</p>
-        <p className="level-info">年级 {grade.toUpperCase()} | 语法/词汇/阅读</p>
+        <p>Learn English！做题目练习英语！</p>
       </div>
       <div className="game-select-list">
         {GAMES.map(g => (
