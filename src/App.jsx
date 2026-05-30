@@ -20,7 +20,8 @@ import './App.css';
 function AppContent() {
   const { state, dispatch } = useGame();
   const [screen, setScreen] = useState('home');
-  const [showPetChoose, setShowPetChoose] = useState(state.showTutorial);
+  // derived from state — cloud data loading后自动更新
+  const showPetChoose = state.showTutorial;
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
@@ -83,15 +84,31 @@ function AppContent() {
   // 登录/注册成功
   function handleLogin(userData) {
     setInitializing(true);
-    // 先彻底清除本地旧数据
-    localStorage.removeItem('lele-island-data');
-    dispatch({ type: 'INIT', payload: null });
 
     loadGameDataFromServer().then(cloudData => {
       if (cloudData && Object.keys(cloudData).length > 1) {
+        // 有云数据 → 直接用云数据（不清本地）
         dispatch({ type: 'INIT', payload: cloudData });
+      } else {
+        // 无云数据 → 走本地 localStorage
+        const saved = localStorage.getItem('lele-island-data');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (parsed.pet?.type) {
+              dispatch({ type: 'INIT', payload: parsed });
+            } else {
+              localStorage.removeItem('lele-island-data');
+              dispatch({ type: 'INIT', payload: null });
+            }
+          } catch {
+            localStorage.removeItem('lele-island-data');
+            dispatch({ type: 'INIT', payload: null });
+          }
+        } else {
+          dispatch({ type: 'INIT', payload: null });
+        }
       }
-      // 给 store 一点时间写入 localStorage
       setTimeout(() => {
         setUser(userData);
         setInitializing(false);
@@ -168,7 +185,6 @@ function AppContent() {
                   dispatch({ type: 'CHOOSE_PET', payload: { type: p.type, color: p.color } });
                   dispatch({ type: 'DISMISS_TUTORIAL' });
                   dispatch({ type: 'ADD_COINS', payload: 10 });
-                  setShowPetChoose(false);
                 }}
               >
                 <span className="pet-choose-emoji">{p.emoji}</span>
