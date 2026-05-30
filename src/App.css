@@ -527,7 +527,14 @@ body {
 }
 .game-select-card:hover { border-color: var(--pink); }
 .game-select-icon { font-size: 28px; }
-.game-select-label { flex: 1; font-size: 15px; font-weight: 600; }
+.game-select-label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.game-select-name { font-size: 15px; font-weight: 600; }
+.game-select-desc { font-size: 11px; color: var(--text-light); }
 .game-select-arrow { font-size: 18px; color: var(--text-light); }
 .game-ai { border-color: var(--purple); }
 .ai-badge {
@@ -2925,3 +2932,278 @@ body {
 .parent-mastery-track { flex: 1; height: 12px; background: #f0e8f0; border-radius: 6px; overflow: hidden; }
 .parent-mastery-fill { height: 100%; border-radius: 6px; transition: width 0.5s; min-width: 4px; }
 .parent-mastery-pct { font-size: 11px; color: var(--text-light); width: 30px; text-align: right; }
+
+/* ═══════════════════════════════════════════════════════
+   首页 v2 — 小岛地图风格（儿童友好设计）
+   ═══════════════════════════════════════════════════════ */
+
+.home-screen-v2 {
+  padding-bottom: 80px; /* 为底部导航留空间 */
+}
+
+/* ── 顶部 Hero 区域 ── */
+.home-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #FFF5F5, #F5F0FF);
+  border-radius: 0 0 24px 24px;
+  margin-bottom: 8px;
+}
+.home-hero-pet {
+  flex-shrink: 0;
+  width: 70px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.home-hero-info {
+  flex: 1;
+  min-width: 0;
+}
+.hero-greeting {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+}
+.hero-motivation {
+  font-size: 13px;
+  color: var(--text-light);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hero-streak {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  background: linear-gradient(90deg, #FF6B35, #FF8C42);
+  color: white;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── 学习进度（学→玩 循环）── */
+.home-progress-section {
+  margin: 0 16px 12px;
+  padding: 14px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+.progress-cycle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 50px;
+}
+.step-icon { font-size: 24px; }
+.step-label { font-size: 11px; font-weight: 700; color: var(--text-light); }
+.step-value { font-size: 14px; font-weight: 800; color: var(--text); }
+.progress-step-locked .step-icon { filter: grayscale(1); opacity: 0.5; }
+.progress-step-unlocked .step-icon { animation: pulse 2s infinite; }
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+.progress-arrow {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.progress-bar-track {
+  width: 100%;
+  height: 8px;
+  background: #f0e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #8BC34A);
+  border-radius: 4px;
+  transition: width 0.8s ease-out;
+}
+.progress-arrow-text {
+  font-size: 11px;
+  color: var(--text-light);
+}
+.progress-hint {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 12px;
+  color: #999;
+  padding: 6px;
+  background: #FFF8E1;
+  border-radius: 8px;
+}
+.progress-hint-ok {
+  background: #E8F5E9;
+  color: #2E7D32;
+}
+.progress-hint b { color: var(--pink); }
+
+/* ── 小岛地图：5个学科区域 ── */
+.home-island-map {
+  margin: 0 16px 12px;
+}
+.island-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 10px;
+  text-align: center;
+}
+.island-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.island-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  background: white;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  position: relative;
+  overflow: hidden;
+  font-family: var(--font);
+}
+.island-zone::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--zone-gradient);
+}
+.island-zone:active { transform: scale(0.96); }
+.island-zone.zone-done { opacity: 0.85; }
+.island-zone.zone-done::before { background: linear-gradient(90deg, #4CAF50, #8BC34A); }
+.zone-icon-wrap {
+  position: relative;
+}
+.zone-icon { font-size: 28px; }
+.zone-done-badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  font-size: 14px;
+}
+.zone-label {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+}
+.zone-motto {
+  font-size: 10px;
+  color: var(--text-light);
+}
+.zone-score {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4CAF50;
+}
+/* 5个格子，前两个占大格 */
+.island-grid .island-zone:nth-child(1),
+.island-grid .island-zone:nth-child(2) {
+  grid-row: span 1;
+}
+/* 第3个居中 */
+.island-grid .island-zone:nth-child(3) {
+  grid-column: span 1;
+}
+/* 第4、5个 */
+.island-grid .island-zone:nth-child(4),
+.island-grid .island-zone:nth-child(5) {
+  grid-column: span 1;
+}
+
+/* 进度汇总 */
+.island-progress-summary {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-light);
+}
+.island-progress-bar {
+  margin-top: 6px;
+  height: 6px;
+  background: #f0e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.island-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--pink), var(--purple));
+  border-radius: 3px;
+  transition: width 0.5s;
+}
+
+/* ── 底部快捷入口 ── */
+.home-bottom-actions {
+  display: flex;
+  gap: 10px;
+  padding: 0 16px;
+  margin-bottom: 16px;
+}
+.bottom-action-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 4px;
+  background: white;
+  border: 2px solid #f0e8f0;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  font-family: var(--font);
+}
+.bottom-action-btn:active { transform: scale(0.95); }
+.bottom-action-btn.action-ready {
+  border-color: var(--pink);
+  background: var(--pink-light);
+}
+.bottom-action-btn.action-locked {
+  opacity: 0.6;
+}
+.bottom-action-btn .action-icon { font-size: 22px; }
+.bottom-action-btn .action-label { font-size: 11px; font-weight: 700; color: var(--text); }
+.action-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--pink);
+  color: white;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

@@ -622,7 +622,10 @@ export default function ChineseScreen({ onBack }) {
             }}
           >
             <span className="game-select-icon">{g.icon}</span>
-            <span className="game-select-label">{g.label}</span>
+            <div className="game-select-label">
+              <span className="game-select-name">{g.label}</span>
+              {g.desc && <span className="game-select-desc">{g.desc}</span>}
+            </div>
             {g.ai && <span className="ai-badge">AI</span>}
             <span className="game-select-arrow">→</span>
           </button>

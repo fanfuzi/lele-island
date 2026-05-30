@@ -150,7 +150,10 @@ export default function EnglishScreen({ onBack }) {
         {GAMES.map(g => (
           <button key={g.id} className="game-select-card" onClick={() => setGameMode(g.id)}>
             <span className="game-select-icon">{g.icon}</span>
-            <span className="game-select-label">{g.label}</span>
+            <div className="game-select-label">
+              <span className="game-select-name">{g.label}</span>
+              {g.desc && <span className="game-select-desc">{g.desc}</span>}
+            </div>
             <span className="game-select-arrow">→</span>
           </button>
         ))}

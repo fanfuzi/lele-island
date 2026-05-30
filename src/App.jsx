@@ -199,16 +199,13 @@ function AppContent() {
         {screen === 'parent' && <ParentDashboard onBack={() => setScreen('home')} />}
         {screen === 'tutor' && <AITutorScreen onBack={() => { setReviewPreset(null); setScreen('home'); }} preset={reviewPreset} />}
       </main>
-      <nav className="bottom-nav bottom-nav-scroll">
+      <nav className="bottom-nav">
         {[
-          { key: 'home', icon: '🏠', label: '小岛' },
-          { key: 'cantonese', icon: '🗣️', label: '粤语' },
-          { key: 'chinese', icon: '✍️', label: '汉字' },
-          { key: 'math', icon: '🔢', label: '数学' },
-          { key: 'english', icon: '🔤', label: '英文' },
-          { key: 'gs', icon: '🌍', label: '常识' },
+          { key: 'home', icon: '🏝️', label: '小岛' },
+          { key: 'pet-room', icon: '🐾', label: '宠物' },
           { key: 'tutor', icon: '🧑‍🏫', label: 'AI助教' },
-          { key: 'pet-room', icon: '🏠', label: '宠物' },
+          { key: 'shop', icon: '🛒', label: '商店' },
+          { key: 'stats', icon: '🏆', label: '成就' },
         ].map(tab => (
           <button
             key={tab.key}
