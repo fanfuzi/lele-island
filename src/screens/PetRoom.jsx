@@ -45,6 +45,8 @@ export default function PetRoom({ onBack }) {
   const sessionLen = state.studySessionMinutes || 25;
   const playLen = state.playSessionMinutes || 10;
   const canPlay = playMinutesAvailable > 0;
+  // 今天是否学过（学1分钟就算，解锁互动和商店）
+  const hasStudied = studyMinutes > 0;
   // 距离下一轮解锁还需学习多少分钟
   const studySinceLastUnlock = studyMinutes % sessionLen;
   const minutesToNextUnlock = sessionLen - studySinceLastUnlock;
@@ -158,6 +160,11 @@ export default function PetRoom({ onBack }) {
   }
 
   function handleTap() {
+    if (!hasStudied) {
+      setPetSpeech('先学习才能跟我玩哦！📚');
+      setTimeout(() => setPetSpeech(''), 2500);
+      return;
+    }
     // 点击宠物获得小互动
     const tapSayings = ['嘿嘿！', '做咩呀？', '嘻嘻～', '你叫我呀？', '摸摸我啦！'];
     setPetSpeech(tapSayings[Math.floor(Math.random() * tapSayings.length)]);
@@ -298,20 +305,31 @@ export default function PetRoom({ onBack }) {
 
       {/* 互动按钮 */}
       <div className="pet-actions">
-        <button className="action-btn" onClick={handleFeed} disabled={state.coins < 2}>
+        <button className="action-btn" onClick={handleFeed}
+          disabled={!hasStudied || state.coins < 2}
+          title={!hasStudied ? '先学习才能喂食哦！' : state.coins < 2 ? '金币不够' : ''}>
           <span className="action-icon">🍪</span>
-          <span className="action-label">喂食</span>
+          <span className="action-label">{!hasStudied ? '🔒' : ''} 喂食</span>
           <span className="action-cost">2🪙</span>
         </button>
-        <button className="action-btn" onClick={handleClean} disabled={pet.cleanliness >= 95}>
+        <button className="action-btn" onClick={handleClean}
+          disabled={!hasStudied || pet.cleanliness >= 95}
+          title={!hasStudied ? '先学习才能清洁哦！' : ''}>
           <span className="action-icon">🧼</span>
-          <span className="action-label">清洁</span>
+          <span className="action-label">{!hasStudied ? '🔒' : ''} 清洁</span>
         </button>
         <button className="action-btn" onClick={() => setShowFurniture(!showFurniture)}>
           <span className="action-icon">🛋️</span>
           <span className="action-label">家具</span>
         </button>
       </div>
+
+      {/* 未学习提示条 */}
+      {!hasStudied && (
+        <div className="hint-bar hint-bar-warn" style={{ margin: '0 16px 10px', textAlign: 'center' }}>
+          🔒 先学习才能和{pet.name}互动哦！
+        </div>
+      )}
 
       {/* 玩耍活动 */}
       <div className="pet-play-section">

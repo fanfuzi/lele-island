@@ -6,10 +6,12 @@ import { logActivity } from '../utils/activityLog';
 export default function ShopScreen({ onBack }) {
   const { state, dispatch } = useGame();
   const [tab, setTab] = useState('food');
+  const hasStudied = (state.dailyStudyMinutes || 0) > 0;
 
   const currentItems = shopItems.filter(i => i.type === tab);
 
   function handleBuy(item) {
+    if (!hasStudied) return; // 先学习才能购买
     if (state.inventory.includes(item.id)) {
       // 服装类可以穿戴/脱下，家具类可以摆放
       if (item.type === 'clothing') {
@@ -39,6 +41,11 @@ export default function ShopScreen({ onBack }) {
         </div>
       </div>
 
+      {!hasStudied && (
+        <div className="hint-bar hint-bar-warn" style={{ margin: '8px 16px', textAlign: 'center' }}>
+          🔒 先学习才能使用商店哦！<span style={{ fontSize: 12, opacity: 0.8 }}>（去做几道题吧！）</span>
+        </div>
+      )}
       <div className="shop-balance-bar">
         <span>🪙 余额 <strong>{state.coins}</strong></span>
         <span>🌟 余额 <strong>{state.stars}</strong></span>
@@ -65,8 +72,10 @@ export default function ShopScreen({ onBack }) {
           const placed = state.furniture.some(f => f.id === item.id);
           const canAfford = balanceFor(item) >= item.price;
 
-          let actionLabel = '购买';
-          if (owned) {
+          let actionLabel = !hasStudied ? '🔒' : '购买';
+          if (!hasStudied) {
+            actionLabel = '🔒';
+          } else if (owned) {
             if (item.type === 'clothing') actionLabel = wearing ? '脱下' : '穿戴';
             else if (item.type === 'furniture') actionLabel = placed ? '收起' : '摆放';
             else actionLabel = '已拥有';
@@ -91,9 +100,10 @@ export default function ShopScreen({ onBack }) {
                 )}
               </div>
               <button
-                className={`btn btn-small ${owned ? (wearing || placed ? 'btn-wearing' : 'btn-owned') : (canAfford ? 'btn-primary' : 'btn-disabled')}`}
+                className={`btn btn-small ${!hasStudied ? 'btn-disabled' : owned ? (wearing || placed ? 'btn-wearing' : 'btn-owned') : (canAfford ? 'btn-primary' : 'btn-disabled')}`}
                 onClick={() => handleBuy(item)}
-                disabled={!owned && !canAfford}
+                disabled={!hasStudied || (!owned && !canAfford)}
+                title={!hasStudied ? '先学习才能逛商店哦！' : ''}
               >
                 {actionLabel}
               </button>
