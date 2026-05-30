@@ -312,36 +312,13 @@ function AppContent() {
               <p className="settings-hint">家长在"家长中心"输入此邀请码即可查看你的学习报告</p>
             </div>
 
-            {/* 家长控制：学习解锁 & 玩宠物上限 */}
+            {/* 家长控制 — 只读提示，修改请在家长中心 */}
             <div className="settings-section">
-              <label className="settings-label">🔒 家长控制</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 13, minWidth: 120 }}>📚 每轮学习时长</span>
-                  <input
-                    type="number"
-                    min="5"
-                    max="60"
-                    value={state.studySessionMinutes || 25}
-                    onChange={e => dispatch({ type: 'UPDATE_PET_PLAY_SETTINGS', payload: { studySessionMinutes: Math.max(5, parseInt(e.target.value) || 25) } })}
-                    style={{ width: 60, padding: '4px 8px', border: '2px solid var(--pink-light)', borderRadius: 'var(--radius-sm)', fontSize: 14, textAlign: 'center' }}
-                  />
-                  <span style={{ fontSize: 13, color: 'var(--text-light)' }}>分钟/轮</span>
-                </div>
-                <p className="settings-hint">每学满X分钟，解锁一轮玩耍（无限循环）</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 13, minWidth: 120 }}>🎾 每轮玩耍时长</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max="30"
-                    value={state.playSessionMinutes || 10}
-                    onChange={e => dispatch({ type: 'UPDATE_PET_PLAY_SETTINGS', payload: { playSessionMinutes: Math.max(1, parseInt(e.target.value) || 10) } })}
-                    style={{ width: 60, padding: '4px 8px', border: '2px solid var(--pink-light)', borderRadius: 'var(--radius-sm)', fontSize: 14, textAlign: 'center' }}
-                  />
-                  <span style={{ fontSize: 13, color: 'var(--text-light)' }}>分钟/轮</span>
-                </div>
-                <p className="settings-hint">每轮学习后可玩耍X分钟，无限循环反复</p>
+              <label className="settings-label">🔒 学习-玩耍循环</label>
+              <div style={{ padding: '10px 12px', background: '#FFF8E1', borderRadius: 'var(--radius-sm)', fontSize: 13, color: '#F57F17', lineHeight: 1.5, marginTop: 4 }}>
+                📚 每轮学 <b>{state.studySessionMinutes || 25}</b> 分钟
+                &nbsp;→&nbsp; 🎾 玩 <b>{state.playSessionMinutes || 10}</b> 分钟
+                <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>👨‍👩‍👧 需要家长在「家长中心」修改</div>
               </div>
             </div>
 

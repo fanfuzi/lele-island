@@ -2603,6 +2603,15 @@ body {
 .parent-chart-section { background: white; border-radius: var(--radius); padding: 14px; margin: 8px 0; box-shadow: var(--shadow); }
 .parent-chart-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
 
+/* 家长中心 - 学习-玩耍循环设置 */
+.parent-study-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.parent-study-input {
+  width: 60px; padding: 4px 8px; border: 2px solid var(--pink-light);
+  border-radius: var(--radius-sm); font-size: 14px; text-align: center;
+  font-family: var(--font);
+}
+.parent-study-settings { padding: 4px 0; }
+
 /* 柱状图（每日学习时长） */
 .parent-bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 140px; padding: 0 4px; }
 .parent-bar-item { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }

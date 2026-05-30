@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getChildren, getChildActivity, getChildAnalysis, getChildMastery, bindChild } from '../api/auth';
+import { useGame } from '../store';
 
 const SUBJECT_NAMES = {
   math: '🔢 数学',
@@ -41,6 +42,7 @@ const HABIT_LABELS = {
 };
 
 export default function ParentDashboard({ onBack }) {
+  const { state, dispatch } = useGame();
   const [children, setChildren] = useState([]);
   const [selectedChild, setSelectedChild] = useState(null);
   const [activities, setActivities] = useState([]);
@@ -144,6 +146,50 @@ export default function ParentDashboard({ onBack }) {
     if (a.total_count) detail += ` · ${a.correct_count || 0}/${a.total_count}`;
     if (a.duration_seconds && a.duration_seconds > 60) detail += ` · ${formatDuration(a.duration_seconds)}`;
     return detail;
+  }
+
+  // 🔒 学习-玩耍循环设置（家长专属）
+  const [studyMins, setStudyMins] = useState(state.studySessionMinutes || 25);
+  const [playMins, setPlayMins] = useState(state.playSessionMinutes || 10);
+
+  function renderStudySettings() {
+    const hasChanged = studyMins !== state.studySessionMinutes || playMins !== state.playSessionMinutes;
+    return (
+      <div className="parent-chart-section">
+        <div className="parent-chart-title">🔒 学习-玩耍循环设置</div>
+        <div className="parent-study-settings">
+          <div className="parent-study-row">
+            <span style={{ fontSize: 13, minWidth: 100 }}>📚 每轮学习</span>
+            <input
+              type="number" min="5" max="60"
+              value={studyMins}
+              onChange={e => setStudyMins(Math.max(5, parseInt(e.target.value) || 25))}
+              className="parent-study-input"
+            />
+            <span style={{ fontSize: 13, color: 'var(--text-light)' }}>分钟</span>
+            <span style={{ fontSize: 16, margin: '0 4px' }}>→</span>
+            <span style={{ fontSize: 13, minWidth: 100 }}>🎾 每轮玩耍</span>
+            <input
+              type="number" min="1" max="30"
+              value={playMins}
+              onChange={e => setPlayMins(Math.max(1, parseInt(e.target.value) || 10))}
+              className="parent-study-input"
+            />
+            <span style={{ fontSize: 13, color: 'var(--text-light)' }}>分钟</span>
+            <button
+              className="btn btn-primary btn-small"
+              disabled={!hasChanged}
+              onClick={() => {
+                dispatch({ type: 'UPDATE_PET_PLAY_SETTINGS', payload: { studySessionMinutes: studyMins, playSessionMinutes: playMins } });
+                alert('✅ 设置已保存');
+              }}
+              style={{ marginLeft: 8, whiteSpace: 'nowrap' }}
+            >保存</button>
+          </div>
+          <p className="settings-hint">修改后对孩子立即生效</p>
+        </div>
+      </div>
+    );
   }
 
   // SVG 柱状图 — 每日活跃
@@ -539,6 +585,9 @@ export default function ParentDashboard({ onBack }) {
           </div>
         </div>
       )}
+
+      {/* 学习-玩耍循环设置（家长专属） */}
+      {selectedChild && renderStudySettings()}
 
       {/* AI 相关数据 */}
       {selectedChild && analysis && (
