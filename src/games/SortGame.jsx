@@ -111,7 +111,10 @@ export default function SortGame({ questions, onComplete, onAnswer, title, icon 
       result[cat.id] = [];
     }
     for (const [itemId, catId] of Object.entries(placement)) {
-      if (result[catId]) result[catId].push(question.items.find(i => i.id === itemId));
+      if (result[catId]) {
+        const foundItem = question.items.find(i => i.id === itemId);
+        if (foundItem) result[catId].push(foundItem);
+      }
     }
     return result;
   }, [placement, question]);
