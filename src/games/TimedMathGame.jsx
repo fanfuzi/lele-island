@@ -52,8 +52,9 @@ function shuffleArray(arr) {
   const s = [...arr]; for (let i = s.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [s[i], s[j]] = [s[j], s[i]]; } return s;
 }
 
-export default function TimedMathGame({ level = 1, questionCount = 12, onComplete, onAnswer }) {
+export default function TimedMathGame({ level: defaultLevel = 1, questionCount = 12, onComplete, onAnswer }) {
   const [phase, setPhase] = useState('setup');
+  const [level, setLevel] = useState(defaultLevel);
   const [timeLimit, setTimeLimit] = useState(60);
   const [perQuestionTime, setPerQuestionTime] = useState(15);
   const [questions, setQuestions] = useState([]);
@@ -96,6 +97,7 @@ export default function TimedMathGame({ level = 1, questionCount = 12, onComplet
             <div className="timed-setup-inputs">
               {[{ id: 1, label: '🌱 基础', desc: '加减法' }, { id: 2, label: '🌿 进阶', desc: '含乘法' }, { id: 3, label: '🔥 挑战', desc: '含除法+混合' }].map(l => (
                 <button key={l.id} className={`timed-option-btn timed-option-wide ${level === l.id ? 'active' : ''}`} onClick={() => {
+                  setLevel(l.id);
                   const t = l.id === 3 ? 120 : l.id === 2 ? 90 : 60;
                   setTimeLimit(t); setPerQuestionTime(l.id >= 2 ? 20 : 15);
                 }}>
