@@ -117,7 +117,9 @@ export async function onRequest(context) {
 
   // 健康检查
   if (path === 'health') {
-    return json({ status: 'ok', ai: !!apiKey, provider: isSiliconflow ? 'siliconflow' : 'deepseek', db: !!db });
+    // 只返回 key 的前几位用于调试，不暴露完整 key
+    const keyPreview = apiKey ? apiKey.slice(0, 8) + '...' : 'EMPTY';
+    return json({ status: 'ok', ai: !!apiKey, provider: isSiliconflow ? 'siliconflow' : 'deepseek', keyPreview, db: !!db });
   }
 
   // ===== 认证路由 =====
