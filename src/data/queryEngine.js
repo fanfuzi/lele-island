@@ -3,10 +3,16 @@
 
 import { getCurriculumLevel, GRADE_MAP } from './curriculum/curriculumMap';
 import mathCurriculum from './curriculum/subjects/mathCurriculum';
+import chineseCurriculum from './curriculum/subjects/chineseCurriculum';
+import cantoneseCurriculum from './curriculum/subjects/cantoneseCurriculum';
+import { englishCurriculum } from './curriculum/subjects/englishCurriculum';
+import { gsCurriculum } from './curriculum/subjects/gsCurriculum';
 import { generateFromTemplates } from './expansion/templateEngine';
 import { mathTemplates } from './expansion/mathTemplates';
 import { englishTemplates } from './expansion/englishTemplates';
 import { gsTemplates } from './expansion/gsTemplates';
+import { chineseTemplates } from './expansion/chineseTemplates';
+import { cantoneseTemplates } from './expansion/cantoneseTemplates';
 
 /**
  * 查询题目
@@ -142,6 +148,23 @@ export function getCurriculumPath(gradeId) {
 }
 
 /**
+ * 获取任意科目的课程大纲
+ */
+const SUBJECT_CURRICULUM = {
+  math: mathCurriculum,
+  chinese: chineseCurriculum,
+  cantonese: cantoneseCurriculum,
+  english: englishCurriculum,
+  gs: gsCurriculum,
+};
+
+export function getSubjectCurriculum(subject, gradeId) {
+  const curriculum = SUBJECT_CURRICULUM[subject];
+  if (!curriculum) return [];
+  return curriculum.filter(c => c.grade === gradeId);
+}
+
+/**
  * 转换题目为游戏组件需要的格式
  */
 export function toQuizQuestion(q) {
@@ -174,6 +197,8 @@ const SUBJECT_TEMPLATES = {
   math: mathTemplates,
   english: englishTemplates,
   gs: gsTemplates,
+  chinese: chineseTemplates,
+  cantonese: cantoneseTemplates,
 };
 
 export function getTemplateGeneratedProblems({ subject = 'math', grade, count = 10, genre, edbCode } = {}) {
@@ -194,6 +219,7 @@ export default {
   getBalancedQuestions,
   analyzeWrongRecords,
   getCurriculumPath,
+  getSubjectCurriculum,
   toQuizQuestion,
   getTemplateGeneratedProblems,
 };

@@ -98,7 +98,7 @@ export default function EnglishScreen({ onBack }) {
   }
 
   if (gameMode === 'fill') {
-    const words = getTemplateGeneratedProblems({ subject: 'english', grade: 'p1', count: 8, genre: 'computation' }).map(p => ({
+    const words = getTemplateGeneratedProblems({ subject: 'english', grade, count: 8, genre: 'computation' }).map(p => ({
       id: `fill-${p.id}`, question: p.question.replace('_____', '______'), answer: p.answer, mode: 'text', hint: '填写正确的单词',
     }));
     return (
