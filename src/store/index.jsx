@@ -76,17 +76,17 @@ const initialState = {
   habitLog: [],
   // 诊断记录
   diagnosisHistory: [],
-  // === 家长控制 ===
-  // 今日学习时长（分钟），完成题目时累加
+  // === 学习-玩耍循环机制 ===
+  // 今日累计学习时长（分钟）
   dailyStudyMinutes: 0,
-  // 今日已玩宠物时长（分钟），玩时累加
+  // 今日累计玩耍时长（分钟）
   dailyPetPlayMinutes: 0,
-  // 玩宠物前需要的学习时长（分钟）— 学20分钟解锁玩耍
-  minStudyMinutesToUnlockPet: 20,
-  // 每日宠物互动上限（分钟）— 每次最多玩10分钟
-  maxPetPlayMinutes: 10,
-  // 每次解锁后可玩时长（分钟）
+  // 每轮学习时长（分钟）— 学满后解锁玩耍
+  studySessionMinutes: 25,
+  // 每轮玩耍时长（分钟）
   playSessionMinutes: 10,
+  // 当前剩余可玩时长（分钟）— 学完一轮+10，玩完归零
+  playMinutesAvailable: 0,
   // 上次记录学习时间的时间戳
   lastStudyTick: 0,
 };
@@ -130,6 +130,7 @@ function loadState() {
       if (merged.dailyProgress.date !== todayStr) {
         merged.dailyStudyMinutes = 0;
         merged.dailyPetPlayMinutes = 0;
+        merged.playMinutesAvailable = 0;
       }
 
       return merged;
@@ -340,6 +341,13 @@ function gameReducer(state, action) {
 
       // 学习时长估算：每题约 30 秒
       const studyGain = Math.max(1, Math.round(questionsDone * 0.5));
+      const newDailyStudy = (state.dailyStudyMinutes || 0) + studyGain;
+      // 检查是否完成新一轮学习（每满25分钟解锁10分钟玩耍）
+      const sessionLen = state.studySessionMinutes || 25;
+      const playLen = state.playSessionMinutes || 10;
+      const prevCycles = Math.floor((state.dailyStudyMinutes || 0) / sessionLen);
+      const newCycles = Math.floor(newDailyStudy / sessionLen);
+      const newUnlocks = newCycles - prevCycles;
 
       return {
         ...state,
@@ -359,7 +367,8 @@ function gameReducer(state, action) {
           totalQuestions: state.stats.totalQuestions + questionsDone,
           correctAnswers: state.stats.correctAnswers + Math.round(score / 100 * questionsDone),
         },
-        dailyStudyMinutes: (state.dailyStudyMinutes || 0) + studyGain,
+        dailyStudyMinutes: newDailyStudy,
+        playMinutesAvailable: (state.playMinutesAvailable || 0) + (newUnlocks * playLen),
         lastStudyTick: Date.now(),
       };
     }
@@ -388,6 +397,7 @@ function gameReducer(state, action) {
           dailyProgress: { ...initialState.dailyProgress, date: today },
           dailyStudyMinutes: 0,
           dailyPetPlayMinutes: 0,
+          playMinutesAvailable: 0,
         };
       }
       return state;
@@ -524,9 +534,17 @@ function gameReducer(state, action) {
     case 'ADD_STUDY_TIME': {
       // 完成学习任务时调用，payload 为分钟数
       const minutes = action.payload || 1;
+      const newDailyStudy = (state.dailyStudyMinutes || 0) + minutes;
+      const sessionLen = state.studySessionMinutes || 25;
+      const playLen = state.playSessionMinutes || 10;
+      // 检查是否完成新一轮学习（每满25分钟解锁10分钟玩耍）
+      const prevCycles = Math.floor((state.dailyStudyMinutes || 0) / sessionLen);
+      const newCycles = Math.floor(newDailyStudy / sessionLen);
+      const newUnlocks = newCycles - prevCycles;
       return {
         ...state,
-        dailyStudyMinutes: (state.dailyStudyMinutes || 0) + minutes,
+        dailyStudyMinutes: newDailyStudy,
+        playMinutesAvailable: (state.playMinutesAvailable || 0) + (newUnlocks * playLen),
         lastStudyTick: Date.now(),
       };
     }
@@ -537,15 +555,16 @@ function gameReducer(state, action) {
       return {
         ...state,
         dailyPetPlayMinutes: (state.dailyPetPlayMinutes || 0) + minutes,
+        playMinutesAvailable: Math.max(0, (state.playMinutesAvailable || 0) - minutes),
       };
     }
 
     case 'UPDATE_PET_PLAY_SETTINGS': {
-      // 家长设置，payload: { minStudyMinutesToUnlockPet?, maxPetPlayMinutes? }
+      // 家长设置，payload: { studySessionMinutes?, playSessionMinutes? }
       return {
         ...state,
-        ...(action.payload.minStudyMinutesToUnlockPet !== undefined && { minStudyMinutesToUnlockPet: action.payload.minStudyMinutesToUnlockPet }),
-        ...(action.payload.maxPetPlayMinutes !== undefined && { maxPetPlayMinutes: action.payload.maxPetPlayMinutes }),
+        ...(action.payload.studySessionMinutes !== undefined && { studySessionMinutes: action.payload.studySessionMinutes }),
+        ...(action.payload.playSessionMinutes !== undefined && { playSessionMinutes: action.payload.playSessionMinutes }),
       };
     }
 

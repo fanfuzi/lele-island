@@ -39,13 +39,15 @@ export default function PetRoom({ onBack }) {
   const dragRef = useRef(null);
   const playTimerRef = useRef(null);
 
-  // 家长控制：学习解锁 & 玩宠物上限
+  // 学习-玩耍循环机制
   const studyMinutes = state.dailyStudyMinutes || 0;
-  const playMinutes = state.dailyPetPlayMinutes || 0;
-  const minStudy = state.minStudyMinutesToUnlockPet || 20;
-  const maxPlay = state.maxPetPlayMinutes || 10;
-  const canPlay = studyMinutes >= minStudy;
-  const playTimeRemaining = Math.max(0, maxPlay - playMinutes);
+  const playMinutesAvailable = state.playMinutesAvailable || 0;
+  const sessionLen = state.studySessionMinutes || 25;
+  const playLen = state.playSessionMinutes || 10;
+  const canPlay = playMinutesAvailable > 0;
+  // 距离下一轮解锁还需学习多少分钟
+  const studySinceLastUnlock = studyMinutes % sessionLen;
+  const minutesToNextUnlock = sessionLen - studySinceLastUnlock;
   const petMood = getPetMood(state);
 
   // 每日首次登录奖励
@@ -137,7 +139,7 @@ export default function PetRoom({ onBack }) {
   ];
 
   function handlePlay(activity) {
-    if (!canPlay || playTimeRemaining <= 0) return;
+    if (!canPlay) return;
     const act = activity || playActivities[Math.floor(Math.random() * playActivities.length)];
     dispatch({ type: 'PLAY_WITH_PET', payload: act.happiness });
     dispatch({ type: 'USE_PET_PLAY_TIME', payload: 1 });
@@ -311,10 +313,10 @@ export default function PetRoom({ onBack }) {
         </button>
       </div>
 
-      {/* 玩耍活动（学习达标后解锁） */}
+      {/* 玩耍活动 */}
       <div className="pet-play-section">
         <h3 className="play-section-title">
-          {canPlay ? '🎾 和宠物一起玩' : '🔒 先学习才能玩哦'}
+          {canPlay ? `🎾 和${pet.name}一起玩（还剩${playMinutesAvailable}分钟）` : `🔒 学习${minutesToNextUnlock}分钟后解锁`}
         </h3>
         <div className="play-activities">
           {playActivities.map((act, i) => (
@@ -322,7 +324,7 @@ export default function PetRoom({ onBack }) {
               key={i}
               className="play-activity-btn"
               onClick={() => handlePlay(act)}
-              disabled={!canPlay || playTimeRemaining <= 0}
+              disabled={!canPlay}
             >
               <span className="play-activity-icon">{act.icon}</span>
               <span className="play-activity-name">{act.name}</span>
@@ -331,21 +333,20 @@ export default function PetRoom({ onBack }) {
         </div>
       </div>
 
-      {/* 家长控制提示 */}
+      {/* 循环机制提示 */}
       <div className="pet-parent-hint">
-        {!canPlay ? (
-          <div className="hint-bar hint-bar-warn">
-            📚 已学习 {studyMinutes}/{minStudy} 分钟 · 还差 {minStudy - studyMinutes} 分钟就能和{pet.name}玩啦！
-          </div>
-        ) : playTimeRemaining <= 0 ? (
-          <div className="hint-bar hint-bar-warn">
-            ⏰ 今天玩够啦！{pet.name}需要休息了，明天再来吧！
+        {canPlay ? (
+          <div className="hint-bar hint-bar-ok">
+            ✅ 本轮可玩 <b>{playMinutesAvailable}</b> 分钟 · 再学 {minutesToNextUnlock} 分钟解锁下一轮
           </div>
         ) : (
-          <div className="hint-bar hint-bar-ok">
-            ✅ 学习达标！还能和{pet.name}玩 {playTimeRemaining} 分钟
+          <div className="hint-bar hint-bar-warn">
+            📚 今日已学习 {studyMinutes} 分钟 · 再学 <b>{minutesToNextUnlock}</b> 分钟解锁 {playLen} 分钟玩耍
           </div>
         )}
+        <div className="hint-bar hint-cycle">
+          ⚡ 循环模式：学 {sessionLen} 分钟 → 玩 {playLen} 分钟 → 学 {sessionLen} 分钟 → 玩 {playLen} 分钟...
+        </div>
       </div>
 
       {/* 家具摆放面板 */}

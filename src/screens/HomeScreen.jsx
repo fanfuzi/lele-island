@@ -19,14 +19,16 @@ export default function HomeScreen({ onNavigate }) {
   const today = new Date().toDateString();
   const petMood = getPetMood(state);
 
-  // 学习/玩耍状态
+  // 学习/玩耍循环状态
   const studyMin = state.dailyStudyMinutes || 0;
-  const playMin = state.dailyPetPlayMinutes || 0;
-  const needStudy = state.minStudyMinutesToUnlockPet || 20;
-  const maxPlay = state.maxPetPlayMinutes || 10;
-  const canPetPlay = studyMin >= needStudy;
-  const playLeft = Math.max(0, maxPlay - playMin);
-  const studyProgress = Math.min(100, (studyMin / needStudy) * 100);
+  const playAvailable = state.playMinutesAvailable || 0;
+  const sessionLen = state.studySessionMinutes || 25;
+  const playLen = state.playSessionMinutes || 10;
+  const canPetPlay = playAvailable > 0;
+  const studySinceLastUnlock = studyMin % sessionLen;
+  const studyProgress = (studySinceLastUnlock / sessionLen) * 100;
+  const minutesToNextUnlock = sessionLen - studySinceLastUnlock;
+  const completedCycles = Math.floor(studyMin / sessionLen);
 
   // 今日完成统计
   const todayDone = ISLAND_ZONES.filter(z => dailyProgress.date === today && dailyProgress[z.key]?.done).length;
@@ -73,7 +75,7 @@ export default function HomeScreen({ onNavigate }) {
         </div>
       </div>
 
-      {/* ═══════════ 学习进度条（核心：学→玩 循环）═════════ */}
+      {/* ═══════════ 学习进度条（学25分→玩10分 循环）═════════ */}
       <div className="home-progress-section">
         <div className="progress-cycle">
           <div className="progress-step progress-step-study">
@@ -86,23 +88,22 @@ export default function HomeScreen({ onNavigate }) {
               <div className="progress-bar-fill" style={{ width: `${studyProgress}%` }} />
             </div>
             <span className="progress-arrow-text">
-              {canPetPlay ? '✅' : `还差${needStudy - studyMin}分`}
+              {canPetPlay ? '✅' : `${studySinceLastUnlock}/${sessionLen}分`}
             </span>
           </div>
           <div className={`progress-step progress-step-play ${canPetPlay ? 'unlocked' : 'locked'}`}>
             <span className="step-icon">{canPetPlay ? '🎾' : '🔒'}</span>
             <span className="step-label">玩耍</span>
-            <span className="step-value">{playLeft}分</span>
+            <span className="step-value">{playAvailable}分</span>
           </div>
         </div>
-        {!canPetPlay && (
-          <div className="progress-hint">
-            🎯 认真学习 <b>{needStudy - studyMin}</b> 分钟，就能和{pet.name}玩耍啦！
-          </div>
-        )}
-        {canPetPlay && playLeft > 0 && (
+        {canPetPlay ? (
           <div className="progress-hint progress-hint-ok">
-            🎉 学习达标！去宠物屋和{pet.name}玩耍吧！
+            🎉 可以玩耍了！还剩 <b>{playAvailable}</b> 分钟 · 再学 {minutesToNextUnlock} 分解锁下一轮
+          </div>
+        ) : (
+          <div className="progress-hint">
+            ⚡ 再学 <b>{minutesToNextUnlock}</b> 分钟，解锁 {playLen} 分钟玩耍！{completedCycles > 0 ? `（今日已完成${completedCycles}轮）` : ''}
           </div>
         )}
       </div>
