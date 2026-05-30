@@ -8,7 +8,6 @@ function generateQuestions(count, level = 1) {
     const op2 = ops[Math.floor(Math.random() * ops.length)];
     let a, b, c, ans;
     const isTwoOp = op2 !== '+' && Math.random() > 0.4;
-
     if (isTwoOp) {
       const ranges = level >= 3 ? [[10, 99], [2, 12], [2, 9]] : level === 2 ? [[5, 50], [2, 9], [2, 6]] : [[2, 30], [2, 9], null];
       const [r1, r2, r3] = ranges;
@@ -63,14 +62,99 @@ export default function TimedMathGame({ level: defaultLevel = 1, questionCount =
   const [totalAnswered, setTotalAnswered] = useState(0);
   const [feedback, setFeedback] = useState(null);
   const [totalTimeLeft, setTotalTimeLeft] = useState(0);
-  const [questionTimeLeft, setQuestionTimeLeft] = useState(0);
-  const timerRef = useRef(null);
-  const questionTimerRef = useRef(null);
-  const startTime = useRef(null);
-  const scoreRef = useRef(0);
-  const totalRef = useRef(0);
 
-  // 设置页
+  // 所有可变值用 ref 存储，避免闭包陷阱
+  const refs = useRef({
+    score: 0, total: 0, current: 0, feedback: null,
+    questions: [], totalTimeLeft: 0, perQTime: 15,
+    qStartTime: Date.now(), answered: false,
+  }).current;
+  const liveOnComplete = useRef(onComplete);
+  const liveOnAnswer = useRef(onAnswer);
+  liveOnComplete.current = onComplete;
+  liveOnAnswer.current = onAnswer;
+
+  // 每帧更新显示（用 ref 值展示）
+  const displayScore = score;
+  const displayTotal = totalAnswered;
+  const question = questions[current];
+  const qTimeLeft = question ? Math.max(0, Math.ceil(refs.perQTime - (Date.now() - refs.qStartTime) / 1000)) : 0;
+
+  const shuffledOptions = useMemo(() => {
+    if (!question?.options) return [];
+    return shuffleArray(question.options);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question?.question]);
+
+  function doAnswer(isCorrect) {
+    if (isCorrect) refs.score += 1;
+    refs.total += 1;
+    refs.answered = true;
+    setScore(refs.score);
+    setTotalAnswered(refs.total);
+    liveOnAnswer.current?.(isCorrect, question);
+  }
+
+  function advance() {
+    const nextIdx = refs.current + 1;
+    refs.feedback = null;
+    refs.answered = false;
+    refs.qStartTime = Date.now();
+    if (nextIdx < refs.questions.length && refs.totalTimeLeft > 1) {
+      refs.current = nextIdx;
+      setCurrent(nextIdx);
+      setFeedback(null);
+    } else {
+      liveOnComplete.current?.(refs.score, refs.total);
+      setPhase('result');
+    }
+  }
+
+  function handleTimeout() {
+    if (refs.answered) return;
+    doAnswer(false);
+    setFeedback('wrong');
+    setTimeout(advance, 600);
+  }
+
+  // 整体倒计时
+  const gameStartRef = useRef(null);
+  useEffect(() => {
+    if (phase !== 'playing') return;
+    gameStartRef.current = Date.now();
+    refs.totalTimeLeft = timeLimit;
+    setTotalTimeLeft(timeLimit);
+    const timer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - gameStartRef.current) / 1000);
+      const left = Math.max(0, timeLimit - elapsed);
+      refs.totalTimeLeft = left;
+      setTotalTimeLeft(left);
+      if (left <= 0) {
+        clearInterval(timer);
+        liveOnComplete.current?.(refs.score, refs.total);
+        setPhase('result');
+      }
+    }, 200);
+    return () => clearInterval(timer);
+  }, [phase]);
+
+  // 每题倒计时
+  useEffect(() => {
+    if (phase !== 'playing') return;
+    const qNum = refs.current;
+    const timer = setInterval(() => {
+      if (refs.current !== qNum) { clearInterval(timer); return; }
+      if (refs.answered) { clearInterval(timer); return; }
+      const elapsed = Math.floor((Date.now() - refs.qStartTime) / 1000);
+      if (elapsed >= refs.perQTime) {
+        clearInterval(timer);
+        handleTimeout();
+      }
+    }, 200);
+    return () => clearInterval(timer);
+  }, [phase, current]);
+
+  // ===== 渲染 =====
   if (phase === 'setup') {
     return (
       <div className="timed-setup">
@@ -98,8 +182,8 @@ export default function TimedMathGame({ level: defaultLevel = 1, questionCount =
               {[{ id: 1, label: '🌱 基础', desc: '加减法' }, { id: 2, label: '🌿 进阶', desc: '含乘法' }, { id: 3, label: '🔥 挑战', desc: '含除法+混合' }].map(l => (
                 <button key={l.id} className={`timed-option-btn timed-option-wide ${level === l.id ? 'active' : ''}`} onClick={() => {
                   setLevel(l.id);
-                  const t = l.id === 3 ? 120 : l.id === 2 ? 90 : 60;
-                  setTimeLimit(t); setPerQuestionTime(l.id >= 2 ? 20 : 15);
+                  setTimeLimit(l.id === 3 ? 120 : l.id === 2 ? 90 : 60);
+                  setPerQuestionTime(l.id >= 2 ? 20 : 15);
                 }}>
                   {l.label}<span className="timed-option-desc">{l.desc}</span>
                 </button>
@@ -109,11 +193,16 @@ export default function TimedMathGame({ level: defaultLevel = 1, questionCount =
           <button className="btn btn-primary timed-start-btn" onClick={() => {
             const qs = generateQuestions(questionCount, level);
             setQuestions(qs);
+            refs.questions = qs;
+            refs.score = 0; refs.total = 0; refs.current = 0;
+            refs.feedback = null; refs.answered = false;
+            refs.qStartTime = Date.now();
+            refs.perQTime = perQuestionTime;
+            refs.totalTimeLeft = timeLimit;
+            gameStartRef.current = Date.now();
+            setScore(0); setTotalAnswered(0); setCurrent(0);
             setTotalTimeLeft(timeLimit);
-            setQuestionTimeLeft(perQuestionTime);
-            startTime.current = Date.now();
-            scoreRef.current = 0; totalRef.current = 0;
-            setScore(0); setTotalAnswered(0);
+            setFeedback(null);
             setPhase('playing');
           }}>🚀 开始挑战！</button>
         </div>
@@ -121,10 +210,9 @@ export default function TimedMathGame({ level: defaultLevel = 1, questionCount =
     );
   }
 
-  // 结果页
   if (phase === 'result') {
-    const finalScore = scoreRef.current;
-    const finalTotal = totalRef.current || 1;
+    const finalScore = refs.score;
+    const finalTotal = refs.total || 1;
     const rate = Math.round((finalScore / finalTotal) * 100);
     const stars = rate >= 90 ? '🌟🌟🌟' : rate >= 70 ? '🌟🌟' : '🌟';
     const msg = rate >= 80 ? '太厉害了！你是运算小天才！🏆' : rate >= 50 ? '不错哦！继续加油！💪' : '多练习几次就会越来越快！😊';
@@ -143,74 +231,10 @@ export default function TimedMathGame({ level: defaultLevel = 1, questionCount =
     );
   }
 
-  // 答题中
-  const question = questions[current];
-  if (!question) return null;
+  if (!question) return <div className="timed-loading">加载题目中...</div>;
 
-  const shuffledOptions = useMemo(() => {
-    if (!question?.options) return [];
-    return shuffleArray(question.options);
-  }, [question]);
-
-  function submitAnswer(isCorrect) {
-    if (isCorrect) { scoreRef.current += 1; setScore(scoreRef.current); }
-    totalRef.current += 1; setTotalAnswered(totalRef.current);
-    onAnswer?.(isCorrect, question);
-  }
-
-  const handleAnswer = useCallback((option) => {
-    if (feedback) return;
-    submitAnswer(option === question.answer);
-    setFeedback(option === question.answer ? 'correct' : 'wrong');
-    clearInterval(questionTimerRef.current);
-    setTimeout(() => {
-      setFeedback(null);
-      if (current < questions.length - 1 && totalTimeLeft > 0) { setCurrent(c => c + 1); setQuestionTimeLeft(perQuestionTime); }
-      else finishGame();
-    }, 600);
-  }, [current, questions, feedback, perQuestionTime, totalTimeLeft, question?.answer]);
-
-  function handleTimeout() {
-    if (feedback) return;
-    submitAnswer(false);
-    setFeedback('wrong');
-    setTimeout(() => {
-      setFeedback(null);
-      if (current < questions.length - 1 && totalTimeLeft > 0) { setCurrent(c => c + 1); setQuestionTimeLeft(perQuestionTime); }
-      else finishGame();
-    }, 600);
-  }
-
-  function finishGame() {
-    clearInterval(timerRef.current); clearInterval(questionTimerRef.current);
-    onComplete?.(scoreRef.current, totalRef.current);
-    setPhase('result');
-  }
-
-  useEffect(() => {
-    if (phase !== 'playing') return;
-    timerRef.current = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - startTime.current) / 1000);
-      const left = timeLimit - elapsed;
-      if (left <= 0) { clearInterval(timerRef.current); finishGame(); }
-      else setTotalTimeLeft(left);
-    }, 200);
-    return () => clearInterval(timerRef.current);
-  }, [phase]);
-
-  useEffect(() => {
-    if (phase !== 'playing' || feedback) return;
-    questionTimerRef.current = setInterval(() => {
-      setQuestionTimeLeft(prev => {
-        if (prev <= 1) { clearInterval(questionTimerRef.current); handleTimeout(); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(questionTimerRef.current);
-  }, [phase, current, feedback]);
-
-  const totalProgress = ((timeLimit - totalTimeLeft) / timeLimit) * 100;
-  const questionProgress = (questionTimeLeft / perQuestionTime) * 100;
+  const totalProgress = totalTimeLeft > 0 ? ((timeLimit - totalTimeLeft) / timeLimit) * 100 : 0;
+  const qtProgress = qTimeLeft > 0 ? (qTimeLeft / perQuestionTime) * 100 : 0;
 
   return (
     <div className="timed-game">
@@ -222,21 +246,28 @@ export default function TimedMathGame({ level: defaultLevel = 1, questionCount =
         </div>
         <div className="timed-counter">{current + 1}/{questions.length}</div>
         <div className="timed-qtimer">
-          <span className={`qtimer-value ${questionTimeLeft <= 5 ? 'timer-danger' : ''}`}>⏳ {questionTimeLeft}s</span>
+          <span className={`qtimer-value ${qTimeLeft <= 5 ? 'timer-danger' : ''}`}>⏳ {qTimeLeft}s</span>
         </div>
       </div>
       <div className="speed-timer-bar"><div className="speed-timer-fill timed-total-fill" style={{ width: `${totalProgress}%` }} /></div>
-      <div className="speed-timer-bar timed-qtimer-bar"><div className="speed-timer-fill timed-qtimer-fill" style={{ width: `${questionProgress}%`, background: questionTimeLeft <= 5 ? '#FF6B6B' : '#FFD700' }} /></div>
+      <div className="speed-timer-bar timed-qtimer-bar"><div className="speed-timer-fill timed-qtimer-fill" style={{ width: `${qtProgress}%`, background: qTimeLeft <= 5 ? '#FF6B6B' : '#FFD700' }} /></div>
       <div className="timed-question-wrap"><div className="timed-question">{question.question}</div></div>
       <div className="speed-options speed-grid timed-options">
         {shuffledOptions.map((opt, i) => (
           <button key={i} className={`speed-option ${feedback ? (opt === question.answer ? 'correct' : 'wrong') : ''}`}
-            onClick={() => handleAnswer(opt)} disabled={feedback !== null}>{opt}</button>
+            onClick={() => {
+              if (refs.answered) return;
+              refs.answered = true;
+              const right = opt === question.answer;
+              doAnswer(right);
+              setFeedback(right ? 'correct' : 'wrong');
+              setTimeout(advance, 600);
+            }} disabled={feedback !== null}>{opt}</button>
         ))}
       </div>
       <div className="timed-score-bar">
-        <span className="timed-score-correct">✅ {score}</span>
-        <span className="timed-score-wrong">❌ {totalAnswered - score}</span>
+        <span className="timed-score-correct">✅ {displayScore}</span>
+        <span className="timed-score-wrong">❌ {displayTotal - displayScore}</span>
       </div>
     </div>
   );
