@@ -116,22 +116,8 @@ export async function onRequest(context) {
   const db = env.DB; // D1 binding，没有则降级
 
   if (path === 'health') {
-    // 直接检查环境变量中有什么
-    const envKeys = Object.keys(env).filter(k => k.includes('API') || k.includes('KEY'));
-    const hasSf = !!env.SILICONFLOW_API_KEY;
-    const hasDs = !!env.DEEPSEEK_API_KEY;
-    // 直接从 env 取 key 的第一段
-    const sfPreview = env.SILICONFLOW_API_KEY ? String(env.SILICONFLOW_API_KEY).slice(0, 8) + '...' : 'MISSING';
-    const dsPreview = env.DEEPSEEK_API_KEY ? String(env.DEEPSEEK_API_KEY).slice(0, 8) + '...' : 'MISSING';
-    return json({
-      status: 'ok',
-      ai: hasSf || hasDs,
-      provider: hasSf ? 'siliconflow' : (hasDs ? 'deepseek' : 'none'),
-      sfKey: sfPreview,
-      dsKey: dsPreview,
-      envKeys,
-      db: !!env.DB,
-    });
+    const allKeys = Object.keys(env);
+    return json({ status:'ok', allKeys, hasDb: !!env.DB });
   }
 
   // ===== 认证路由 =====
