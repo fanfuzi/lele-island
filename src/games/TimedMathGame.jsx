@@ -5,9 +5,9 @@ function generateQuestions(count, level = 1) {
   const results = [];
   for (let i = 0; i < count; i++) {
     const op1 = ops[Math.floor(Math.random() * ops.length)];
-    const _ = Math.floor(Math.random() * ops.length);
+    const op2 = ops[Math.floor(Math.random() * ops.length)];
     let a, b, c, ans;
-    const isTwoOp = _ > 1 && Math.random() > 0.3;
+    const isTwoOp = op2 !== '+' && Math.random() > 0.3;
     if (isTwoOp) {
       const ranges = level >= 3 ? [[10, 99], [2, 12], [2, 9]] : level === 2 ? [[5, 50], [2, 9], [2, 6]] : [[2, 30], [2, 9], [2, 5]];
       const [r1, r2, r3] = ranges;
