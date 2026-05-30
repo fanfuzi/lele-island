@@ -1,15 +1,18 @@
 /**
  * 乐乐小岛 - AI后端服务
- * 支持 Claude (Anthropic) 和 Deepseek (OpenAI兼容) 两种AI提供商
+ * 支持 Claude (Anthropic)、Deepseek、SiliconFlow (硅基流动) 等AI提供商
  *
  * 配置方式 (环境变量):
- *   AI_PROVIDER=claude|deepseek   (默认 auto 根据API key前缀判断)
- *   ANTHROPIC_API_KEY=sk-ant-xxx   Claude API Key
- *   DEEPSEEK_API_KEY=sk-xxx       Deepseek API Key
- *   AI_MODEL=claude-sonnet-4-20250514  (Claude模型, 可选)
- *   AI_VISION_MODEL=deepseek-vl2    (视觉模型，处理图片时使用，默认同 AI_MODEL)
+ *   AI_PROVIDER=claude|deepseek|siliconflow   (默认 auto 根据API key前缀判断)
+ *   ANTHROPIC_API_KEY=sk-ant-xxx      Claude API Key
+ *   DEEPSEEK_API_KEY=sk-xxx          Deepseek API Key
+ *   SILICONFLOW_API_KEY=sk-xxx       硅基流动 API Key (推荐，支持看图模型 deepseek-vl2)
+ *   AI_MODEL=deepseek-vl2            (模型名称，硅基流动推荐 deepseek-vl2)
+ *   AI_VISION_MODEL=deepseek-vl2     (视觉模型，处理图片时使用)
  *
  * 启动:
+ *   AI_PROVIDER=siliconflow SILICONFLOW_API_KEY=sk-xxx node server/index.js
+ *   或
  *   DEEPSEEK_API_KEY=sk-xxx node server/index.js
  *   或
  *   ANTHROPIC_API_KEY=sk-ant-xxx node server/index.js
@@ -230,34 +233,48 @@ const CONFIG = {
       'Authorization': `Bearer ${key}`,
     }),
   },
+  siliconflow: {
+    apiKey: process.env.SILICONFLOW_API_KEY,
+    baseUrl: 'https://api.siliconflow.cn/v1',
+    defaultModel: process.env.AI_MODEL || 'deepseek-vl2', // 默认就是看图模型
+    visionModel: process.env.AI_VISION_MODEL || 'deepseek-vl2',
+    headers: (key) => ({
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key}`,
+    }),
+  },
 };
 
 // 自动检测提供商
 function detectProvider() {
   const envProvider = process.env.AI_PROVIDER;
-  if (envProvider === 'claude' || envProvider === 'deepseek') {
+  if (envProvider === 'claude' || envProvider === 'deepseek' || envProvider === 'siliconflow') {
     return envProvider;
   }
 
   const anthKey = process.env.ANTHROPIC_API_KEY;
   const dsKey = process.env.DEEPSEEK_API_KEY;
+  const sfKey = process.env.SILICONFLOW_API_KEY;
 
+  if (sfKey && sfKey.startsWith('sk-')) return 'siliconflow';
   if (anthKey && anthKey.startsWith('sk-ant-')) return 'anthropic';
   if (dsKey && dsKey.startsWith('sk-')) return 'deepseek';
   if (anthKey) return 'anthropic';
   if (dsKey) return 'deepseek';
+  if (sfKey) return 'siliconflow';
   return null;
 }
 
 const provider = detectProvider();
 const config = provider ? CONFIG[provider] : null;
 
+const PROVIDER_LABELS = { anthropic: 'Claude', deepseek: 'Deepseek', siliconflow: '硅基流动' };
 console.log(`\n🌟 乐乐小岛 AI 服务器`);
 if (provider && config?.apiKey) {
-  console.log(`   使用 ${provider === 'anthropic' ? 'Claude' : 'Deepseek'} AI (模型: ${config.defaultModel})`);
+  console.log(`   使用 ${PROVIDER_LABELS[provider] || provider} AI (模型: ${config.defaultModel})`);
 } else {
   console.log(`   AI功能未启用`);
-  console.log(`   设置 ANTHROPIC_API_KEY 或 DEEPSEEK_API_KEY 环境变量来开启`);
+  console.log(`   设置 ANTHROPIC_API_KEY / DEEPSEEK_API_KEY / SILICONFLOW_API_KEY 环境变量来开启`);
 }
 
 // ===== 通用 AI 请求函数 =====

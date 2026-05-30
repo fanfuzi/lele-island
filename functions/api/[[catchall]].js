@@ -3,11 +3,29 @@
  *
  * 全功能 API 处理器：
  *   - 认证/用户 → D1 数据库（表: users, sessions, game_data）
- *   - AI 功能 → 代理到 Deepseek API
+ *   - AI 功能 → 代理到 Deepseek / 硅基流动 API
  *   - 无 D1 绑定 → 自动降级为离线模式
+ *
+ * 环境变量：
+ *   AI_PROVIDER=deepseek|siliconflow   (默认 auto)
+ *   DEEPSEEK_API_KEY=sk-xxx           Deepseek API Key
+ *   SILICONFLOW_API_KEY=sk-xxx        硅基流动 API Key (推荐，支持看图)
+ *   AI_VISION_MODEL=deepseek-vl2      视觉模型
  */
 
-const DEEPSEEK_BASE = 'https://api.deepseek.com/v1';
+function getAiConfig(env) {
+  const provider = env.AI_PROVIDER || 'siliconflow'; // 硅基流动作为默认（支持看图）
+  const isSiliconflow = provider === 'siliconflow' || !!env.SILICONFLOW_API_KEY;
+
+  return {
+    isSiliconflow,
+    apiKey: env.SILICONFLOW_API_KEY || env.DEEPSEEK_API_KEY || '',
+    baseUrl: isSiliconflow ? 'https://api.siliconflow.cn/v1' : 'https://api.deepseek.com/v1',
+    defaultModel: isSiliconflow
+      ? (env.AI_VISION_MODEL || 'deepseek-vl2')
+      : 'deepseek-chat',
+  };
+}
 
 // ===== 工具函数 =====
 
@@ -43,8 +61,8 @@ async function getUserFromToken(db, token) {
 
 // ===== AI 代理 =====
 
-/** DeepSeek 调用（支持多模态：userMessage 可以是 string 或 { text, image, mimeType }） */
-async function askDeepseek(systemPrompt, userMessage, apiKey, maxTokens = 500, visionModel) {
+/** DeepSeek/SiliconFlow 调用（OpenAI 兼容格式，支持多模态） */
+async function askAI(systemPrompt, userMessage, apiKey, baseUrl, defaultModel, maxTokens = 500) {
   const hasImage = typeof userMessage === 'object' && userMessage !== null && userMessage.image;
   // 多模态内容构建
   let content;
@@ -58,12 +76,9 @@ async function askDeepseek(systemPrompt, userMessage, apiKey, maxTokens = 500, v
     content = typeof userMessage === 'string' ? userMessage : (userMessage?.text || JSON.stringify(userMessage));
   }
 
-  // 有图片时使用视觉模型（可通过 env 配置），否则用默认 deepseek-chat
-  // deepseek-chat 不支持看图，如需请设置 AI_VISION_MODEL=deepseek-vl2
-  const textModel = 'deepseek-chat';
-  const model = hasImage ? (visionModel || textModel) : textModel;
+  const model = defaultModel;
 
-  const resp = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
+  const resp = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -81,7 +96,7 @@ async function askDeepseek(systemPrompt, userMessage, apiKey, maxTokens = 500, v
 
   if (!resp.ok) {
     const err = await resp.text();
-    console.error(`Deepseek API ${resp.status}: ${err}`);
+    console.error(`AI API ${resp.status}: ${err}`);
     return null;
   }
 
@@ -96,13 +111,13 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const path = url.pathname.replace('/api/', '');
   const method = request.method;
-  const apiKey = env.DEEPSEEK_API_KEY || 'sk-d99be362daee4f828717e1d182ae7973';
-  const visionModel = env.AI_VISION_MODEL || 'deepseek-chat'; // deepseek-chat 不支持看图，如需请设 deepseek-vl2
+  const aiConfig = getAiConfig(env);
+  const { apiKey, baseUrl, defaultModel, isSiliconflow } = aiConfig;
   const db = env.DB; // D1 binding，没有则降级
 
   // 健康检查
   if (path === 'health') {
-    return json({ status: 'ok', ai: !!apiKey, provider: 'deepseek', db: !!db });
+    return json({ status: 'ok', ai: !!apiKey, provider: isSiliconflow ? 'siliconflow' : 'deepseek', db: !!db });
   }
 
   // ===== 认证路由 =====
@@ -409,7 +424,7 @@ export async function onRequest(context) {
 你今日食咗飯未呀？（你今天吃饭了没有呀？）`;
 
         const userMsg = messages?.map?.(m => m.content).join('\n') || '你好！我们一起玩吧！';
-        const reply = await askDeepseek(systemPrompt, userMsg, apiKey, 300);
+        const reply = await askAI(systemPrompt, userMsg, apiKey, baseUrl, defaultModel, 300);
         return json({ reply });
       }
 
@@ -439,7 +454,7 @@ export async function onRequest(context) {
   }
 ]`;
 
-        const reply = await askDeepseek(systemPrompt, `请出${count}道level ${level}的数学选择题`, apiKey, 1000);
+        const reply = await askAI(systemPrompt, `请出${count}道level ${level}的数学选择题`, apiKey, baseUrl, defaultModel, 1000);
         if (!reply) return json({ problems: null });
         const jsonMatch = reply.match(/\[[\s\S]*\]/);
         if (jsonMatch) return json({ problems: JSON.parse(jsonMatch[0]) });
@@ -455,7 +470,7 @@ export async function onRequest(context) {
 3. 鼓励她继续努力
 4. 用简单中文，偶尔加一点粤语
 5. 50字以内，可加表情符号`;
-        const reply = await askDeepseek(systemPrompt, `这是她的学习数据：${JSON.stringify(stats)}，请给她写一段鼓励的话。`, apiKey, 200);
+        const reply = await askAI(systemPrompt, `这是她的学习数据：${JSON.stringify(stats)}，请给她写一段鼓励的话。`, apiKey, baseUrl, defaultModel, 200);
         return json({ message: reply || '继续加油哦！团子为你骄傲！🎉' });
       }
 
@@ -467,7 +482,7 @@ export async function onRequest(context) {
 2. 繁体字：认读、书写
 3. 数学：计算速度、理解能力
 用简单语言给出3条建议，每条一行。`;
-        const reply = await askDeepseek(systemPrompt, `这是学习记录：${JSON.stringify(history)}，请给出建议。`, apiKey, 300);
+        const reply = await askAI(systemPrompt, `这是学习记录：${JSON.stringify(history)}，请给出建议。`, apiKey, baseUrl, defaultModel, 300);
         return json({ advice: reply });
       }
 
@@ -488,10 +503,10 @@ export async function onRequest(context) {
   "suggestions": ["建议1", "建议2", "建议3"],
   "recommendedTopics": ["推荐练习类型1", "推荐练习类型2"]
 }`;
-        const reply = await askDeepseek(
+        const reply = await askAI(
           systemPrompt,
           `这位学生最近在${subjectName}上做错了以下题目：${JSON.stringify((wrongRecords || []).slice(0, 20))}。请分析她的薄弱环节。`,
-          apiKey, 500,
+          apiKey, baseUrl, defaultModel, 500,
         );
         if (!reply) return json(null);
         const m = reply.match(/\{[\s\S]*\}/);
@@ -503,7 +518,7 @@ export async function onRequest(context) {
         const systemPrompt = `你是香港中小学的学科老师，负责根据种子题目生成变体题。
 要求：保持知识点和难度，变化数值或场景，生成${count}道选择题，返回纯JSON数组。
 格式：[{"id":"VAR-1","question":"...","answer":"...","options":[...],"variationType":"数值变体|场景变体"}]`;
-        const reply = await askDeepseek(systemPrompt, `年级：${grade}，科目：${subject}\n种子题目：${JSON.stringify(question)}\n请生成${count}道变体题。`, apiKey, 1000);
+        const reply = await askAI(systemPrompt, `年级：${grade}，科目：${subject}\n种子题目：${JSON.stringify(question)}\n请生成${count}道变体题。`, apiKey, baseUrl, defaultModel, 1000);
         if (!reply) return json({ variations: [] });
         const m = reply.match(/\[[\s\S]*\]/);
         return json({ variations: m ? JSON.parse(m[0]) : [] });
@@ -513,7 +528,7 @@ export async function onRequest(context) {
         const { grade, topic, genre = 'computation', count = 3 } = body;
         const gradeNames = { p1: '小一', p2: '小二', p3: '小三', p4: '小四', p5: '小五', p6: '小六', f1: '中一', f2: '中二', f3: '中三' };
         const systemPrompt = `你是香港中小学数学课程专家，为${gradeNames[grade] || grade}设计数学题目模板。每个模板包含 pattern/variables/answer/distractors。返回纯JSON数组。`;
-        const reply = await askDeepseek(systemPrompt, `请为${gradeNames[grade] || grade}设计${count}个关于"${topic}"的${genre === 'word-problem' ? '应用题' : '计算题'}模板。`, apiKey, 1200);
+        const reply = await askAI(systemPrompt, `请为${gradeNames[grade] || grade}设计${count}个关于"${topic}"的${genre === 'word-problem' ? '应用题' : '计算题'}模板。`, apiKey, baseUrl, defaultModel, 1200);
         if (!reply) return json({ templates: [] });
         const m = reply.match(/\[[\s\S]*\]/s);
         return json({ templates: m ? JSON.parse(m[0]) : [] });
@@ -547,7 +562,7 @@ export async function onRequest(context) {
 
         const userMsgText = `年级：${grade}\n薄弱：${(wrongRecords||[]).map(r=>r.category).filter(Boolean).join('、')||'暂无'}\n掌握度：${JSON.stringify(masteryData||[])}\n作业内容：${textContent||'（见上传图片）'}\n请直接分析图片中的作业，输出诊断 JSON。`;
         const msg = imageData ? { text: userMsgText, image: imageData, mimeType: mimeType || 'image/png' } : userMsgText;
-        const reply = await askDeepseek(systemPrompt, msg, apiKey, 1200, visionModel);
+        const reply = await askAI(systemPrompt, msg, apiKey, baseUrl, defaultModel, 1200);
         if (!reply) return json(null);
         const m = reply.match(/\{[\s\S]*\}/);
         return json(m ? JSON.parse(m[0]) : null);
@@ -576,7 +591,7 @@ export async function onRequest(context) {
 
         const userMsgText = `课本内容：${textbookContent||'（见上传图片）'}\n年级：${grade}\n薄弱点：${allFocus.join('、')||'暂无'}\n掌握度：${JSON.stringify(masteryData||[])}\n出${count}道${sn}复习题，直接分析图片中的课本内容。`;
         const msg = imageData ? { text: userMsgText, image: imageData, mimeType: mimeType || 'image/png' } : userMsgText;
-        const reply = await askDeepseek(systemPrompt, msg, apiKey, 1500, visionModel);
+        const reply = await askAI(systemPrompt, msg, apiKey, baseUrl, defaultModel, 1500);
         if (!reply) return json({ questions: null });
         const m = reply.match(/\{[\s\S]*\}/);
         return json(m ? JSON.parse(m[0]) : { questions: null });
@@ -588,7 +603,7 @@ export async function onRequest(context) {
         const systemPrompt = `请提取这张图片中的所有文字内容。这是香港小学的课本或练习册页面，
 可能包含繁体中文、英文或数字。请完整、准确地提取所有文字，保持原有段落格式和顺序。
 如果图片中有算式，请保持数学符号的准确性。只输出文字内容，不要添加其他说明。`;
-        const text = await askDeepseek(systemPrompt, { text: '请提取这张图片中的所有文字内容。', image, mimeType: 'image/png' }, apiKey, 800, visionModel);
+        const text = await askAI(systemPrompt, { text: '请提取这张图片中的所有文字内容。', image, mimeType: 'image/png' }, apiKey, baseUrl, defaultModel, 800);
         return json({ text: text || null });
       }
 
@@ -597,8 +612,22 @@ export async function onRequest(context) {
         if (!items?.length) return json({ error: '缺少上传内容' }, 400);
         const sn = { math: '数学', chinese: '中文', cantonese: '粤语', english: '英文', gs: '常识' }[subject] || subject;
 
+        const itemsText = items.map((item, i) => {
+          if (item.text) return `[${i + 1}] 文本：${item.text.slice(0, 300)}`;
+          if (item.imageData) return `[${i + 1}] 图片：`;
+          return `[${i + 1}] （空）`;
+        }).join('\n');
+
+        const userMsgText = `科目：${sn}
+年级：${grade}
+共 ${items.length} 份内容：
+
+${itemsText}
+
+请分析以上内容并自动分类分组。`;
+
         const systemPrompt = `你是香港一位资深${sn}教师，擅长分析学生的学习材料。
-你的任务：将学生上传的多份内容自动分类分组，并分析每组的难度和涉及的知识点。
+你的任务：将学生上传的学习内容自动分类分组，并分析每组的难度和涉及的知识点。
 分类标准：
 - "homework" = 日常练习、课后作业
 - "exam" = 测验、考试、小测
@@ -626,30 +655,18 @@ export async function onRequest(context) {
   }
 }`;
 
-        const itemsText = items.map((item, i) => {
-          if (item.text) return `[${i + 1}] 文本：${item.text.slice(0, 300)}`;
-          if (item.imageData) return `[${i + 1}] 图片：`;
-          return `[${i + 1}] （空）`;
-        }).join('\n');
-
-        const userMsgText = `科目：${sn}
-年级：${grade}
-共 ${items.length} 份内容：
-
-${itemsText}
-
-请自动分析图片中的内容进行分组。直接看图片，不要依赖 OCR 文本。`;
-
+        // 把第一张图片也传给 AI（如果 API 支持视觉的话）
         const hasImages = items.some(i => i.imageData);
         const firstImg = items.find(i => i.imageData);
         const msg = hasImages && firstImg
           ? { text: userMsgText, image: firstImg.imageData, mimeType: firstImg.mimeType || 'image/png' }
           : userMsgText;
 
-        const reply = await askDeepseek(systemPrompt, msg, apiKey, 1200, visionModel);
-        if (!reply) return json({ groups: null });
+        const reply = await askAI(systemPrompt, msg, apiKey, baseUrl, defaultModel, 1200);
+        if (!reply) return json({ groups: null, error: 'AI 无响应，请检查 API Key 是否有效' });
         const jm = reply.match(/\{[\s\S]*\}/);
-        return json(jm ? JSON.parse(jm[0]) : { groups: null });
+        if (jm) return json(JSON.parse(jm[0]));
+        return json({ groups: null, error: `AI 返回内容无法解析: ${reply.slice(0, 200)}` });
       }
 
       case 'tutor/generate-exam': {
@@ -710,7 +727,7 @@ ${groupsText}
           ? { text: userMsgText, image: firstImageItem.imageData, mimeType: firstImageItem.mimeType || 'image/png' }
           : userMsgText;
 
-        const reply = await askDeepseek(systemPrompt, msg, apiKey, 2000, visionModel);
+        const reply = await askAI(systemPrompt, msg, apiKey, baseUrl, defaultModel, 2000);
         if (!reply) return json({ questions: null });
         const jm = reply.match(/\{[\s\S]*\}/);
         return json(jm ? JSON.parse(jm[0]) : { questions: null });
