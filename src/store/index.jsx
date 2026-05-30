@@ -76,6 +76,8 @@ const initialState = {
   habitLog: [],
   // 诊断记录
   diagnosisHistory: [],
+  // AI 助教上传内容存档
+  uploadArchives: [],
   // === 学习-玩耍循环机制 ===
   // 今日累计学习时长（分钟）
   dailyStudyMinutes: 0,
@@ -526,6 +528,33 @@ function gameReducer(state, action) {
       return {
         ...state,
         diagnosisHistory: [...state.diagnosisHistory, diagnosisEntry],
+        lastActive: Date.now(),
+      };
+    }
+
+    case 'SAVE_UPLOAD_ARCHIVE': {
+      const archive = { ...action.payload, id: Date.now() + '-' + Math.random().toString(36).slice(2, 6) };
+      return {
+        ...state,
+        uploadArchives: [archive, ...state.uploadArchives],
+        lastActive: Date.now(),
+      };
+    }
+
+    case 'DELETE_UPLOAD_ARCHIVE': {
+      return {
+        ...state,
+        uploadArchives: state.uploadArchives.filter(a => a.id !== action.payload),
+        lastActive: Date.now(),
+      };
+    }
+
+    case 'MARK_ARCHIVE_PRACTICED': {
+      return {
+        ...state,
+        uploadArchives: state.uploadArchives.map(a =>
+          a.id === action.payload ? { ...a, practiced: true } : a
+        ),
         lastActive: Date.now(),
       };
     }

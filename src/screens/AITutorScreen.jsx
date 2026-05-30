@@ -52,6 +52,9 @@ export default function AITutorScreen({ onBack, preset }) {
   // 文本输入（上传页用）
   const [textInput, setTextInput] = useState('');
 
+  // 当前存档 ID（用于标记已练习）
+  const [currentArchiveId, setCurrentArchiveId] = useState(null);
+
   // 通用
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -178,6 +181,33 @@ export default function AITutorScreen({ onBack, preset }) {
         setSelectedGroups(new Set(['G1']));
         setStep('groups');
       }
+
+      // 自动存档：保存本次上传内容+分析结果
+      try {
+        const finalGroups = result?.groups?.length > 0 ? result.groups : [{
+          id: 'G1', type: 'homework', label: '上传内容',
+          itemIndices: items.map((_, i) => i),
+          topics: [], difficulty: '待分析', summary: '全部上传内容',
+        }];
+        const sInfo = SUBJECTS.find(s => s.id === subject) || SUBJECTS[0];
+        const firstText = items.find(i => i.text)?.text?.slice(0, 30) || '';
+        const title = firstText ? `${sInfo.label} - ${firstText}···` : `${sInfo.label}（${items.length}份）`;
+        const weakSnapshot = {
+          mastery: state.mastery[subject] || {},
+          wrongRecords: (state.wrongRecords[subject] || []).slice(-20),
+        };
+        const archivePayload = { subject, grade, title, createdAt: Date.now(), items, groups: finalGroups, overallAnalysis: result?.overallAnalysis || null, weakSnapshot, practiced: false };
+        dispatch({ type: 'SAVE_UPLOAD_ARCHIVE', payload: archivePayload });
+        // 保存后从 localStorage 获取新 ID
+        try {
+          const saved = JSON.parse(localStorage.getItem('lele-island-data') || '{}');
+          if (saved.uploadArchives?.length > 0) {
+            setCurrentArchiveId(saved.uploadArchives[0].id);
+          }
+        } catch {} // eslint-disable-line
+      } catch (e) {
+        console.warn('存档失败:', e.message);
+      }
     } catch (e) {
       setError('分类失败: ' + e.message);
       setStep('upload');
@@ -221,6 +251,10 @@ export default function AITutorScreen({ onBack, preset }) {
         setExamQuestions(result.questions);
         setExamTitle(result.examTitle || `${subjectInfo.label}模拟练习`);
         setStep('quiz');
+        // 标记存档为已练习
+        if (currentArchiveId) {
+          dispatch({ type: 'MARK_ARCHIVE_PRACTICED', payload: currentArchiveId });
+        }
       } else {
         // 尝试提取服务端错误信息
         const serverMsg = result?.error || (result ? 'AI 返回内容无法解析' : 'API 无响应');
@@ -346,6 +380,14 @@ export default function AITutorScreen({ onBack, preset }) {
             </button>
           ))}
         </div>
+        {/* 学习存档入口 */}
+        {state.uploadArchives?.length > 0 && (
+          <div className="tutor-archives-entry" onClick={() => setStep('archives')}>
+            <span className="tutor-archives-entry-icon">📂</span>
+            <span className="tutor-archives-entry-text">学习存档（{state.uploadArchives.length}）</span>
+            <span className="tutor-archives-entry-arrow">→</span>
+          </div>
+        )}
         {/* 薄弱点总览 */}
         {Object.entries(state.mastery).some(([, m]) => Object.keys(m).length > 0) && (
           <div className="tutor-weakness-overview">
@@ -364,6 +406,82 @@ export default function AITutorScreen({ onBack, preset }) {
             </div>
           </div>
         )}
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  //  渲染：学习存档列表
+  // ═══════════════════════════════════════════
+  if (step === 'archives') {
+    const sorted = state.uploadArchives || []; // 最新的在第一个
+    const SUBJECT_MAP = Object.fromEntries(SUBJECTS.map(s => [s.id, s]));
+
+    function loadArchive(archive) {
+      setSubject(archive.subject);
+      setItems(archive.items || []);
+      setGroups(archive.groups || []);
+      setOverallAnalysis(archive.overallAnalysis || null);
+      setSelectedGroups(new Set((archive.groups || []).map(g => g.id)));
+      setCurrentArchiveId(archive.id);
+      setStep('groups');
+    }
+
+    return (
+      <div className="screen">
+        <div className="screen-header">
+          <button className="btn-back" onClick={() => setStep('start')}>← 返回</button>
+          <h2>📂 学习存档</h2><div />
+        </div>
+        <div className="tutor-content">
+          {sorted.length === 0 ? (
+            <div className="archive-empty">
+              <p>暂无存档</p>
+              <p className="archive-empty-hint">上传内容并完成AI分析后，会自动保存到这里</p>
+            </div>
+          ) : (
+            <div className="archive-list">
+              {sorted.map(a => {
+                const sInfo = SUBJECT_MAP[a.subject] || SUBJECTS[0];
+                const date = new Date(a.createdAt).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const itemSummary = a.items?.length > 0
+                  ? (a.items.find(i => i.text)?.text?.slice(0, 40) || `${a.items.length}份图片`)
+                  : '';
+                const weakTags = (a.weakSnapshot?.mastery ? Object.entries(a.weakSnapshot.mastery).filter(([, d]) => d.level < 0.5 && d.total >= 2).map(([t]) => t) : []).slice(0, 3);
+
+                return (
+                  <div key={a.id} className={`archive-card ${a.practiced ? 'archive-practiced' : ''}`}>
+                    <div className="archive-card-header">
+                      <span className="archive-subject-icon" style={{ color: sInfo.color }}>{sInfo.icon}</span>
+                      <span className="archive-grade">{a.grade?.toUpperCase()}</span>
+                      <span className="archive-date">{date}</span>
+                      {a.practiced && <span className="archive-practiced-badge">✅已练</span>}
+                    </div>
+                    <div className="archive-title">{a.title}</div>
+                    {itemSummary && <div className="archive-summary">{itemSummary}</div>}
+                    {weakTags.length > 0 && (
+                      <div className="archive-weak-tags">
+                        {weakTags.map(t => <span key={t} className="group-topic-tag">⚠️ {t}</span>)}
+                      </div>
+                    )}
+                    <div className="archive-actions">
+                      <button className="btn btn-primary btn-small" onClick={() => loadArchive(a)}>
+                        📝 重新出题
+                      </button>
+                      <button className="btn btn-small btn-secondary" onClick={() => {
+                        if (confirm('确定删除这条存档？')) {
+                          dispatch({ type: 'DELETE_UPLOAD_ARCHIVE', payload: a.id });
+                        }
+                      }}>
+                        🗑️ 删除
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     );
   }

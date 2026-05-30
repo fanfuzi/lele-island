@@ -3196,6 +3196,52 @@ body {
   white-space: nowrap;
 }
 
+/* ===== AI 助教 - 学习存档 ===== */
+.tutor-archives-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  margin: 0 16px 10px;
+  background: linear-gradient(135deg, #FFF3E0, #FFECB3);
+  border: 2px solid #FFE082;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tutor-archives-entry:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.2);
+}
+.tutor-archives-entry-icon { font-size: 24px; }
+.tutor-archives-entry-text { flex: 1; font-size: 15px; font-weight: 700; color: #E65100; }
+.tutor-archives-entry-arrow { font-size: 18px; color: #FF8F00; }
+
+.archive-empty { text-align: center; padding: 40px 20px; color: var(--text-light); }
+.archive-empty-hint { font-size: 13px; margin-top: 8px; opacity: 0.7; }
+.archive-list { display: flex; flex-direction: column; gap: 10px; }
+
+.archive-card {
+  background: white;
+  border: 2px solid #f0e8f0;
+  border-radius: var(--radius);
+  padding: 14px;
+  transition: all 0.2s;
+}
+.archive-card:hover { border-color: var(--pink-light); }
+.archive-practiced { border-color: #C8E6C9; background: #F1F8E9; }
+
+.archive-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.archive-subject-icon { font-size: 20px; }
+.archive-grade { font-size: 11px; background: #f0e8f0; padding: 1px 8px; border-radius: 6px; font-weight: 600; color: var(--text-light); }
+.archive-date { font-size: 12px; color: var(--text-light); margin-left: auto; }
+.archive-practiced-badge { font-size: 11px; color: #2E7D32; font-weight: 600; white-space: nowrap; }
+
+.archive-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.archive-summary { font-size: 12px; color: var(--text-light); margin-bottom: 6px; }
+.archive-weak-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.archive-actions { display: flex; gap: 8px; margin-top: 8px; }
+
 /* 上传类型选择 */
 .tutor-upload-types { display: flex; flex-direction: column; gap: 10px; padding: 8px 16px; }
 .tutor-upload-type-card {
