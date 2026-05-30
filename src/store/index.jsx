@@ -165,6 +165,7 @@ function gameReducer(state, action) {
         stats: { ...initialState.stats, ...p.stats },
         wrongRecords: { ...initialState.wrongRecords, ...p.wrongRecords },
         mastery: { ...initialState.mastery, ...p.mastery },
+        uploadArchives: p.uploadArchives || [],
       };
     }
 

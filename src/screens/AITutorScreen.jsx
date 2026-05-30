@@ -7,6 +7,7 @@ import PetCompanion from '../components/PetCompanion';
 import RewardModal from '../components/RewardModal';
 import MistakeAnalysis from '../components/MistakeAnalysis';
 import { logActivity } from '../utils/activityLog';
+import { saveGameDataToServer } from '../api/auth';
 
 const SUBJECTS = [
   { id: 'math', label: '数学', icon: '🔢', color: '#FF9EAA' },
@@ -204,6 +205,9 @@ export default function AITutorScreen({ onBack, preset }) {
         }));
         const archivePayload = { subject, grade, title, createdAt: Date.now(), items: lightItems, groups: finalGroups, overallAnalysis: result?.overallAnalysis || null, weakSnapshot, practiced: false };
         dispatch({ type: 'SAVE_UPLOAD_ARCHIVE', payload: archivePayload });
+        // 立即同步到云端（不等30秒定时器）
+        const stateAfterSave = { ...state, uploadArchives: [archivePayload, ...(state.uploadArchives || [])].slice(0, 20) };
+        saveGameDataToServer(stateAfterSave);
         // 保存后从 localStorage 获取新 ID
         try {
           const saved = JSON.parse(localStorage.getItem('lele-island-data') || '{}');
