@@ -553,33 +553,23 @@ app.post('/api/generate-template', async (req, res) => {
 
   const gradeNames = { p1: '小一', p2: '小二', p3: '小三', p4: '小四', p5: '小五', p6: '小六', f1: '中一', f2: '中二', f3: '中三' };
 
-  const systemPrompt = `你是香港中小学数学课程专家，负责为${gradeNames[grade] || grade}设计数学题目模板。
+  const systemPrompt = [
+    '你是香港中小学数学课程专家，负责为' + (gradeNames[grade] || grade) + '设计数学题目模板。',
+    '',
+    '每个模板包含：',
+    '1. pattern：题目模式，用 {var} 表示变量',
+    '2. variables：变量定义（数值范围、可选词语列表）',
+    '3. answer：答案计算公式',
+    '4. distractors：3个错误选项计算公式',
+    '5. distractorLabels：每个错误选项对应的错误原因',
+    '',
+    '返回纯JSON数组，每个对象包含: id, pattern, variables, answer, distractors, distractorLabels, genre, edbCodes, difficulty',
+    '',
+    '注意：变量的range用数字范围，数组用字符串列表。答案和干扰项用表达式，支持 + - * / abs()',
+  ].join('\n');
 
-每个模板包含：
-1. pattern：题目模式，用 {var} 表示变量
-2. variables：变量定义（数值范围、可选词语列表）
-3. answer：答案计算公式
-4. distractors：3个错误选项计算公式
-5. distractorLabels：每个错误选项对应的错误原因
-
-返回纯JSON数组，格式：
-[
-  {
-    "id": "AI-TPL-001",
-    "pattern": "…{a}…{b}…",
-    "variables": { "a": { "range": [10, 50] }, "b": { "range": [5, 20] }, "place": ["公园", "学校"] },
-    "answer": "a + b",
-    "distractors": ["abs(a-b)", "a+b+10", "a+b-10"],
-    "distractorLabels": ["用減法", "進位錯誤", "退位錯誤"],
-    "genre": "${genre}",
-    "edbCodes": ["N3-1.1"],
-    "difficulty": 2
-  }
-]
-
-注意：变量的range用数字范围，数组用字符串列表。答案和干扰项用表达式，支持 + - * / abs()`,
-
-  const reply = await askAI(systemPrompt, `请为${gradeNames[grade] || grade}设计${count}个关于"${topic}"的${genre === 'word-problem' ? '应用题' : '计算题'}模板。`, 1200);
+  const promptText = '请为' + (gradeNames[grade] || grade) + '设计' + count + '个关于"' + topic + '"的' + (genre === 'word-problem' ? '应用题' : '计算题') + '模板。';
+  const reply = await askAI(systemPrompt, promptText, 1200);
   if (!reply) return res.json({ templates: [] });
 
   try {
@@ -767,6 +757,160 @@ ${textbookContent || '（见上传图片）'}
     }
   } catch (e) {
     console.error('Review parse error:', e.message);
+  }
+  res.json({ questions: null });
+});
+
+// ===== AI 内容自动分类 =====
+app.post('/api/tutor/classify', async (req, res) => {
+  const { items, subject, grade } = req.body;
+  if (!provider || !config?.apiKey) return res.json({ groups: null });
+  if (!items?.length) return res.json({ error: '缺少上传内容' });
+
+  const subjectName = { math: '数学', chinese: '中文', cantonese: '粤语', english: '英文', gs: '常识' }[subject] || subject;
+
+  const systemPrompt = `你是香港一位资深${subjectName}教师，擅长分析学生的学习材料。
+
+你的任务：将学生上传的多份内容自动分类分组，并分析每组的难度和涉及的知识点。
+
+分类标准：
+- "homework" = 日常练习、课后作业
+- "exam" = 测验、考试、小测
+- "textbook" = 课本内容、讲义、笔记
+- "mistakes" = 错题、做错的题目
+- "concept" = 概念定义、公式、定理
+
+输出严格 JSON 格式（不要包含其他文字）：
+{
+  "groups": [
+    {
+      "id": "G1",
+      "type": "homework|exam|textbook|mistakes|concept",
+      "label": "分组名称（简短中文）",
+      "itemIndices": [0, 2],
+      "topics": ["涉及的知识点1", "知识点2"],
+      "difficulty": "基础|中等|偏难",
+      "questionCount": 5,
+      "summary": "一句话总结这组内容"
+    }
+  ],
+  "overallAnalysis": {
+    "weakTopics": ["薄弱知识点1", "薄弱知识点2"],
+    "difficulty": "整体难度评估",
+    "suggestion": "学习建议"
+  }
+}`;
+
+  const itemsText = items.map((item, i) => {
+    if (item.text) return `[${i + 1}] 文本：${item.text.slice(0, 300)}`;
+    if (item.imageData) return `[${i + 1}] 图片：（已上传图片）`;
+    return `[${i + 1}] （空）`;
+  }).join('\n');
+
+  const userMsgText = `科目：${subjectName}
+年级：${grade}
+共 ${items.length} 份内容：
+
+${itemsText}
+
+请自动分类分组并分析。`;
+
+  // 构建消息（支持图片）
+  const hasImages = items.some(i => i.imageData);
+  let msg;
+  if (hasImages) {
+    const images = items.filter(i => i.imageData).map(i => i.imageData);
+    msg = { text: userMsgText, image: images[0], mimeType: 'image/png' };
+  } else {
+    msg = userMsgText;
+  }
+
+  const reply = await askAI(systemPrompt, msg, 1200);
+  if (!reply) return res.json({ groups: null });
+
+  try {
+    const jsonMatch = reply.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const result = JSON.parse(jsonMatch[0]);
+      return res.json(result);
+    }
+  } catch (e) {
+    console.error('Classify parse error:', e.message);
+  }
+  res.json({ groups: null });
+});
+
+// ===== AI 根据选中分组生成模拟试卷 =====
+app.post('/api/tutor/generate-exam', async (req, res) => {
+  const { subject, grade, groups, weakTopics, masteryData, count = 10 } = req.body;
+  if (!provider || !config?.apiKey) return res.json({ questions: null });
+  if (!groups?.length) return res.json({ error: '缺少分组内容' });
+
+  const subjectName = { math: '数学', chinese: '中文', cantonese: '粤语', english: '英文', gs: '常识' }[subject] || subject;
+
+  const groupsText = groups.map((g, i) => {
+    const content = g.items?.map(item => item.text || '（图片）').join('；') || g.summary || '';
+    return `分组${i + 1}：${g.label}（${g.type}，${g.difficulty}）\n涉及：${(g.topics || []).join('、')}\n内容摘要：${content.slice(0, 500)}`;
+  }).join('\n\n');
+
+  const weakPoints = (masteryData || [])
+    .filter(m => m.level < 0.6)
+    .sort((a, b) => a.level - b.level)
+    .map(m => m.topic);
+
+  const allFocus = [...new Set([...(weakTopics || []), ...weakPoints])];
+
+  const systemPrompt = `你是香港一位资深${subjectName}教师，擅长根据学生的学习情况出针对性的模拟试卷。
+
+要求：
+1. 题目必须紧密围绕选中分组的知识点
+2. 薄弱知识点占 60% 题量，巩固内容占 40%
+3. 难度梯度：基础 40% + 中等 40% + 挑战 20%
+4. 使用繁体中文，适合 ${grade} 年级
+5. 每题附带知识点标签和难度标签
+
+输出严格 JSON 格式：
+{
+  "examTitle": "模拟试卷名称",
+  "questions": [
+    {
+      "id": "EX-1",
+      "question": "题目文字",
+      "answer": "正确答案",
+      "options": ["A", "B", "C", "D"],
+      "category": "知识点",
+      "difficulty": 1-3,
+      "hint": "解题提示"
+    }
+  ],
+  "summary": {
+    "topics": ["覆盖的知识点"],
+    "weakFocus": ["重点考察的薄弱点"],
+    "tip": "考试建议"
+  }
+}`;
+
+  const userMsgText = `科目：${subjectName}
+年级：${grade}
+选中分组内容：
+${groupsText}
+
+学生薄弱知识点：${allFocus.join('、') || '暂无'}
+掌握度数据：${JSON.stringify(masteryData || [])}
+
+请生成 ${count} 道模拟试卷题目。`;
+
+  const reply = await askAI(systemPrompt, userMsgText, 2000);
+  if (!reply) return res.json({ questions: null });
+
+  try {
+    const jsonMatch = reply.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const result = JSON.parse(jsonMatch[0]);
+      return res.json(result);
+    }
+  } catch (e) {
+    console.error('Exam parse error:', e.message);
   }
   res.json({ questions: null });
 });

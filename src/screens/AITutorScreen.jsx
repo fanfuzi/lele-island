@@ -1,21 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useGame, getPetEmoji } from '../store';
-import { homeworkDiagnose, generateReview } from '../api';
+import { classifyContent, generateExam, homeworkDiagnose, generateReview } from '../api';
 import { ocrImage, isValidText } from '../utils/ocr';
 import QuizGame from '../games/QuizGame';
 import PetCompanion from '../components/PetCompanion';
 import RewardModal from '../components/RewardModal';
+import MistakeAnalysis from '../components/MistakeAnalysis';
 import { logActivity } from '../utils/activityLog';
 
-// 上传类型
-const UPLOAD_TYPES = [
-  { id: 'homework', label: '作业', icon: '📝', desc: '日常练习或课后作业', prompt: '分析这道作业的对错，找出做错的地方并引导我改正' },
-  { id: 'exam', label: '试卷', icon: '📋', desc: '测验或考试卷', prompt: '分析试卷成绩，找出知识薄弱点，给出改进建议' },
-  { id: 'textbook', label: '教材', icon: '📖', desc: '课本内页或讲义', prompt: '根据教材内容出复习题，涵盖重点知识' },
-  { id: 'mistakes', label: '错题', icon: '❌', desc: '收集的错题本', prompt: '分析错题规律，针对薄弱知识点出加强练习' },
-];
-
-// 科目
 const SUBJECTS = [
   { id: 'math', label: '数学', icon: '🔢', color: '#FF9EAA' },
   { id: 'chinese', label: '中文', icon: '✍️', color: '#A8D8EA' },
@@ -24,18 +16,12 @@ const SUBJECTS = [
   { id: 'cantonese', label: '粤语', icon: '🗣️', color: '#FFDAA3' },
 ];
 
-// 错误类型
-const ERROR_TYPE_CONFIG = {
-  careless: { label: '计算粗心', icon: '🔢', color: '#FF9EAA', strategy: '先估后算，检查进位退位' },
-  keyword: { label: '关键词遗漏', icon: '🔑', color: '#A8D8EA', strategy: '圈出数量关系词再列式' },
-  logic: { label: '多步逻辑', icon: '📐', color: '#C9B1FF', strategy: '画图理清多步逻辑关系' },
-  geometry: { label: '几何观察', icon: '🔍', color: '#AAE1C6', strategy: '从小到大有序计数' },
-};
-
-const HABIT_CHALLENGES = {
-  'reverse-check': { title: '反向验算', icon: '✅', description: '请用加法检查你刚才那道减法题的答案' },
-  'neat-draft': { title: '规范草稿', icon: '📝', description: '请把竖式重新写在草稿区，确保个位、十位完全对齐' },
-  'common-sense': { title: '常识校验', icon: '🤔', description: '算出的结果比题目给的数据还大/小？这合理吗？' },
+const TYPE_LABELS = {
+  homework: { label: '作业', icon: '📝', color: '#FF9EAA' },
+  exam: { label: '试卷', icon: '📋', color: '#C9B1FF' },
+  textbook: { label: '教材', icon: '📖', color: '#A8D8EA' },
+  mistakes: { label: '错题', icon: '❌', color: '#FF8C42' },
+  concept: { label: '概念', icon: '💡', color: '#AAE1C6' },
 };
 
 export default function AITutorScreen({ onBack, preset }) {
@@ -43,31 +29,25 @@ export default function AITutorScreen({ onBack, preset }) {
   const cameraRef = useRef(null);
   const galleryRef = useRef(null);
 
-  // === 状态 ===
-  const [step, setStep] = useState('start');       // start → subject → upload → analyzing → result → guidance → quiz
+  // === 步骤 ===
+  // start → upload → classifying → groups → generating → quiz
+  const [step, setStep] = useState('start');
   const [subject, setSubject] = useState('math');
-  const [uploadType, setUploadType] = useState(null);
   const [petMood, setPetMood] = useState('normal');
   const [petStatus, setPetStatus] = useState('');
 
-  // 图片/文本
-  const [imageData, setImageData] = useState(null);
-  const [imageMimeType, setImageMimeType] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [inputText, setInputText] = useState('');
-  const [ocrText, setOcrText] = useState('');
+  // 上传内容（支持多份）
+  const [items, setItems] = useState([]); // [{ text, imageData, mimeType, preview }]
   const [ocrLoading, setOcrLoading] = useState(false);
-  const [ocrProgress, setOcrProgress] = useState(0);
 
-  // 分析结果
-  const [diagnosis, setDiagnosis] = useState(null);
-  const [analysisResult, setAnalysisResult] = useState(null); // { weakPoints, difficulty, suggestions }
-  const [guidanceIndex, setGuidanceIndex] = useState(0);
-  const [habitChallenge, setHabitChallenge] = useState(null);
-  const [habitDone, setHabitDone] = useState(false);
+  // AI 分类结果
+  const [groups, setGroups] = useState([]); // [{ id, type, label, itemIndices, topics, difficulty, summary }]
+  const [overallAnalysis, setOverallAnalysis] = useState(null);
+  const [selectedGroups, setSelectedGroups] = useState(new Set());
 
-  // 复习
-  const [reviewQuestions, setReviewQuestions] = useState(null);
+  // 生成的试卷
+  const [examQuestions, setExamQuestions] = useState(null);
+  const [examTitle, setExamTitle] = useState('');
 
   // 通用
   const [loading, setLoading] = useState(false);
@@ -79,25 +59,52 @@ export default function AITutorScreen({ onBack, preset }) {
 
   const subjectInfo = SUBJECTS.find(s => s.id === subject) || SUBJECTS[0];
   const grade = state.userGrade || 'p3';
-  const presetDone = useRef(false);
 
-  // 预设处理（从首页日历进入）
+  // 预设处理
+  const presetDone = useRef(false);
   useEffect(() => {
     if (preset?.subject && preset?.topic && !presetDone.current) {
       presetDone.current = true;
-      const s = preset.subject;
-      const info = SUBJECTS.find(x => x.id === s);
-      if (!info) return;
-      setSubject(s);
-      setUploadType(UPLOAD_TYPES[2]); // textbook
-      const prompt = `【${info.label} · ${grade}】${preset.topic}\n\n${preset.desc || '鞏固練習'}\n\n請根據以上內容出複習題，題型包括選擇題和應用題。`;
-      setInputText(prompt);
-      setStep('analyzing');
-      setTimeout(() => handleAnalyze(prompt, s, 'textbook'), 300);
+      setSubject(preset.subject);
+      setItems([{ text: `${preset.topic}\n${preset.desc || ''}`, imageData: null, mimeType: null, preview: null }]);
+      setStep('upload');
     }
   }, [preset]);
 
-  // === 图片处理 ===
+  // === 添加内容 ===
+  async function addImageItem(file) {
+    if (!file) return;
+    setError('');
+    try {
+      const dataUrl = await fileToBase64(file);
+      const newItem = {
+        text: '',
+        imageData: dataUrl.split(',')[1],
+        mimeType: file.type || 'image/png',
+        preview: dataUrl,
+      };
+      // OCR 尝试提取文字
+      setOcrLoading(true);
+      try {
+        const text = await ocrImage(file, () => {});
+        if (text && isValidText(text)) newItem.text = text;
+      } catch { /* ok */ }
+      setOcrLoading(false);
+      setItems(prev => [...prev, newItem]);
+    } catch {
+      setError('图片加载失败');
+    }
+  }
+
+  function addTextItem(text) {
+    if (!text.trim()) return;
+    setItems(prev => [...prev, { text: text.trim(), imageData: null, mimeType: null, preview: null }]);
+  }
+
+  function removeItem(index) {
+    setItems(prev => prev.filter((_, i) => i !== index));
+  }
+
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -107,169 +114,150 @@ export default function AITutorScreen({ onBack, preset }) {
     });
   }
 
-  async function handleImageUpload(file) {
-    if (!file) return;
-    setError('');
-    try {
-      const dataUrl = await fileToBase64(file);
-      setImageData(dataUrl.split(',')[1]);
-      setImageMimeType(file.type || 'image/png');
-      setImagePreview(dataUrl);
-    } catch (e) {
-      setError('图片加载失败');
-    }
-    // OCR 兜底
-    setOcrLoading(true);
-    setOcrProgress(0);
-    try {
-      const text = await ocrImage(file, (pct) => setOcrProgress(pct));
-      if (text && isValidText(text)) {
-        setOcrText(text);
-        setInputText(text);
-      }
-    } catch { /* OCR 失败不影响 AI 直传 */ }
-    setOcrLoading(false);
-  }
-
-  // === 核心：AI 分析 ===
-  async function handleAnalyze(overrideText, overrideSubject, overrideType) {
-    const content = (overrideText || inputText).trim();
-    const subj = overrideSubject || subject;
-    const type = overrideType || uploadType?.id || 'homework';
-
-    if (!content && !imageData) { setError('请拍照或输入内容'); return; }
-
+  // === 核心：AI 自动分类 ===
+  async function handleClassify() {
+    if (items.length === 0) { setError('请先上传内容'); return; }
     setLoading(true);
     setError('');
-    setStep('analyzing');
-
-    const wrongTopics = [...new Set((state.wrongRecords[subj] || []).map(r => r.category).filter(Boolean))];
-    const masteryData = Object.entries(state.mastery[subj] || {}).map(([topic, data]) => ({
-      topic, level: data.level, total: data.total,
-    }));
+    setStep('classifying');
 
     try {
-      if (type === 'textbook' || type === 'mistakes') {
-        // 教材/错题 → 生成复习题
-        const result = await generateReview({
-          subject: subj, grade,
-          textbookContent: content,
-          imageData: imageData || undefined,
-          mimeType: imageMimeType || undefined,
-          wrongTopics, masteryData, count: 5,
-        });
-        if (result?.questions?.length > 0) {
-          setReviewQuestions(result.questions);
-          setAnalysisResult({
-            type: 'review',
-            title: type === 'textbook' ? '📖 根据教材生成的练习' : '❌ 针对错题的加强练习',
-            questionCount: result.questions.length,
-            weakTopics: wrongTopics.slice(0, 5),
-          });
-          setStep('result');
-        } else {
-          setError('AI 出题失败，请重试');
-          setStep('upload');
-        }
+      const result = await classifyContent({
+        items: items.map(i => ({ text: i.text || undefined, imageData: i.imageData || undefined })),
+        subject, grade,
+      });
+
+      if (result?.groups?.length > 0) {
+        setGroups(result.groups);
+        setOverallAnalysis(result.overallAnalysis || null);
+        // 默认全选
+        setSelectedGroups(new Set(result.groups.map(g => g.id)));
+        setStep('groups');
       } else {
-        // 作业/试卷 → 诊断分析
-        const result = await homeworkDiagnose({
-          textContent: content,
-          imageData: imageData || undefined,
-          mimeType: imageMimeType || undefined,
-          subject: subj, grade, wrongRecords: state.wrongRecords[subj] || [], masteryData,
-        });
-        if (result) {
-          setDiagnosis(result);
-          // 从结果中提取薄弱分析
-          setAnalysisResult({
-            type: 'diagnosis',
-            title: type === 'exam' ? '📋 试卷分析报告' : '📝 作业诊断报告',
-            errorCount: result.errorCount || 0,
-            errorTypes: result.errorTypes || [],
-            weakTopics: wrongTopics.slice(0, 5),
-            firstMessage: result.firstMessage,
-            difficulty: result.errorCount > 3 ? '偏难' : result.errorCount > 1 ? '适中' : '掌握良好',
-          });
-          setStep('result');
-          if (result.errorCount > 0) {
-            dispatch({
-              type: 'RECORD_DIAGNOSIS',
-              payload: { subject: subj, errorCount: result.errorCount, errorTypes: result.errorTypes, resolved: false },
-            });
-          }
-          logActivity({
-            type: 'diagnosis', subject: subj, gameType: `ai-${type}`,
-            score: result.errorCount === 0 ? 100 : 0, total: result.errorCount || 0, correct: 0,
-          });
-        } else {
-          setError('AI 分析失败，请重试');
-          setStep('upload');
-        }
+        // AI 分类失败，降级为单组
+        setGroups([{
+          id: 'G1', type: 'homework', label: '上传内容',
+          itemIndices: items.map((_, i) => i),
+          topics: [], difficulty: '待分析', summary: '全部上传内容',
+        }]);
+        setSelectedGroups(new Set(['G1']));
+        setStep('groups');
       }
     } catch (e) {
-      setError('分析出错: ' + e.message);
+      setError('分类失败: ' + e.message);
       setStep('upload');
     }
     setLoading(false);
   }
 
-  // === 引导下一步 ===
-  function handleNextAction() {
-    if (!analysisResult) return;
-    if (analysisResult.type === 'review') {
-      setStep('quiz');
-    } else if (diagnosis?.errorCount > 0 && diagnosis?.guidanceSteps?.length > 0) {
-      setStep('guidance');
-    } else {
-      resetToStart();
+  // === 根据选中分组生成试卷 ===
+  async function handleGenerateExam() {
+    const selected = groups.filter(g => selectedGroups.has(g.id));
+    if (selected.length === 0) { setError('请至少选择一个分组'); return; }
+
+    setLoading(true);
+    setError('');
+    setStep('generating');
+
+    const weakTopics = [...new Set((state.wrongRecords[subject] || []).map(r => r.category).filter(Boolean))];
+    const masteryData = Object.entries(state.mastery[subject] || {}).map(([topic, data]) => ({
+      topic, level: data.level, total: data.total,
+    }));
+
+    try {
+      // 把选中分组对应的原始内容传给 AI
+      const selectedGroupsData = selected.map(g => ({
+        ...g,
+        items: (g.itemIndices || []).map(idx => items[idx]).filter(Boolean),
+      }));
+
+      const result = await generateExam({
+        subject, grade,
+        groups: selectedGroupsData,
+        weakTopics, masteryData,
+        count: 8,
+      });
+
+      if (result?.questions?.length > 0) {
+        setExamQuestions(result.questions);
+        setExamTitle(result.examTitle || `${subjectInfo.label}模拟练习`);
+        setStep('quiz');
+      } else {
+        setError('AI 出题失败，请重试');
+        setStep('groups');
+      }
+    } catch (e) {
+      setError('出题失败: ' + e.message);
+      setStep('groups');
     }
+    setLoading(false);
   }
 
-  function handleGuidanceNext() {
-    const steps = diagnosis?.guidanceSteps || [];
-    if (guidanceIndex < steps.length - 1) {
-      setGuidanceIndex(guidanceIndex + 1);
-    } else if (diagnosis?.habitChallenge) {
-      setHabitChallenge(diagnosis.habitChallenge);
-      setStep('habit');
-    } else {
-      resetToStart();
+  // === 直接诊断（单张作业快速分析） ===
+  async function handleQuickDiagnose() {
+    if (items.length === 0) return;
+    setLoading(true);
+    setError('');
+    setStep('classifying');
+
+    const textContent = items.map(i => i.text).filter(Boolean).join('\n');
+    const firstImage = items.find(i => i.imageData);
+
+    const weakTopics = [...new Set((state.wrongRecords[subject] || []).map(r => r.category).filter(Boolean))];
+    const masteryData = Object.entries(state.mastery[subject] || {}).map(([topic, data]) => ({
+      topic, level: data.level, total: data.total,
+    }));
+
+    try {
+      const result = await homeworkDiagnose({
+        textContent, imageData: firstImage?.imageData, mimeType: firstImage?.mimeType,
+        subject, grade, wrongRecords: state.wrongRecords[subject] || [], masteryData,
+      });
+
+      if (result) {
+        // 转为试卷格式
+        if (result.guidanceSteps?.length > 0) {
+          const diagQuestions = result.guidanceSteps.map((step, i) => ({
+            id: `D-${i + 1}`,
+            question: step.detectiveHint || step.question || '请检查这道题',
+            answer: step.correctAnswer || '详见解析',
+            options: step.options || [],
+            category: step.type || '诊断',
+            difficulty: 2,
+            hint: step.strategy || '',
+          }));
+          setExamQuestions(diagQuestions);
+          setExamTitle('作业诊断练习');
+          setStep('quiz');
+        } else {
+          setError(result.firstMessage || '分析完成，未发现错误');
+          setStep('upload');
+        }
+      }
+    } catch (e) {
+      setError('诊断失败: ' + e.message);
+      setStep('upload');
     }
+    setLoading(false);
   }
 
-  function handleHabitComplete() {
-    setHabitDone(true);
-    dispatch({ type: 'RECORD_HABIT', payload: { subject, habitType: habitChallenge.type, completed: true } });
-    dispatch({ type: 'ADD_COINS', payload: 3 });
-  }
-
-  function handleReviewComplete(score, total) {
+  // === 答题完成 ===
+  function handleComplete(score, total) {
     setPlayerScore(score);
     setPlayerTotal(total);
     const coins = Math.round((score / total) * 10) + 2;
     setRewardCoins(coins);
     setShowReward(true);
     dispatch({ type: 'COMPLETE_QUEST', payload: { subject, score: coins, questionsDone: total } });
-    if (reviewQuestions) {
-      const catStats = {};
-      reviewQuestions.forEach(q => {
-        if (!catStats[q.category]) catStats[q.category] = { correct: 0, total: 0 };
-        catStats[q.category].total++;
-      });
-      Object.entries(catStats).forEach(([cat, stats]) => {
-        dispatch({ type: 'UPDATE_MASTERY', payload: { subject, category: cat, correct: Math.round((score / total) * stats.total), total: stats.total } });
-      });
-    }
-    logActivity({ type: 'review', subject, gameType: 'ai-review', score: Math.round((score / total) * 100), total, correct: score });
+    logActivity({ type: 'review', subject, gameType: 'ai-exam', score: Math.round((score / total) * 100), total, correct: score });
   }
 
-  function handleReviewAnswer(correct, question) {
+  function handleAnswer(correct, question) {
     if (correct) {
-      setPetMood('happy'); setPetStatus('答对了！继续加油！🌟');
+      setPetMood('happy'); setPetStatus('答对了！🌟');
       setTimeout(() => { setPetMood('normal'); setPetStatus(''); }, 1500);
     } else {
-      setPetMood('sad'); setPetStatus('再想想看，你可以的！💪');
+      setPetMood('sad'); setPetStatus('加油！💪');
       setTimeout(() => { setPetMood('normal'); setPetStatus(''); }, 2000);
       if (question?.category) {
         dispatch({ type: 'RECORD_WRONG_ANSWER', payload: { subject, category: question.category, questionId: question.id } });
@@ -280,23 +268,18 @@ export default function AITutorScreen({ onBack, preset }) {
 
   function handleRewardClose() {
     setShowReward(false);
-    resetToStart();
+    resetAll();
   }
 
-  function resetToStart() {
+  function resetAll() {
     setStep('start');
-    setDiagnosis(null);
-    setAnalysisResult(null);
-    setReviewQuestions(null);
-    setGuidanceIndex(0);
-    setHabitChallenge(null);
-    setHabitDone(false);
-    setInputText('');
-    setOcrText('');
-    setImageData(null);
-    setImagePreview(null);
+    setItems([]);
+    setGroups([]);
+    setOverallAnalysis(null);
+    setSelectedGroups(new Set());
+    setExamQuestions(null);
+    setExamTitle('');
     setError('');
-    setUploadType(null);
   }
 
   // ═══════════════════════════════════════════
@@ -307,30 +290,29 @@ export default function AITutorScreen({ onBack, preset }) {
       <div className="screen">
         <div className="screen-header">
           <button className="btn-back" onClick={onBack}>← 返回</button>
-          <h2>🧑‍🏫 AI 助教</h2>
-          <div />
+          <h2>🧑‍🏫 AI 助教</h2><div />
         </div>
         <div className="tutor-hero">
-          <PetCompanion size="small" mood="happy" statusText="拍照上传，我帮你分析！" interactive gazeTracking />
+          <PetCompanion size="small" mood="happy" statusText="上传资料，我帮你智能分析！" interactive gazeTracking />
         </div>
-        <div className="section-desc"><p>选择要学习的科目</p></div>
+        <div className="section-desc"><p>选择科目</p></div>
         <div className="tutor-subject-grid">
           {SUBJECTS.map(s => (
             <button key={s.id} className="tutor-subject-card" style={{ '--card-color': s.color }}
-              onClick={() => { setSubject(s.id); setStep('upload-type'); }}>
+              onClick={() => { setSubject(s.id); setStep('upload'); }}>
               <span className="tutor-subject-icon">{s.icon}</span>
               <span className="tutor-subject-label">{s.label}</span>
             </button>
           ))}
         </div>
-        {/* 薄弱知识点总览 */}
+        {/* 薄弱点总览 */}
         {Object.entries(state.mastery).some(([, m]) => Object.keys(m).length > 0) && (
           <div className="tutor-weakness-overview">
-            <div className="tutor-weakness-title">📊 你的薄弱知识点</div>
+            <div className="tutor-weakness-title">📊 薄弱知识点</div>
             <div className="tutor-weakness-list">
               {Object.entries(state.mastery).map(([subj, topics]) => {
                 const weak = Object.entries(topics).filter(([, d]) => d.level < 0.5 && d.total >= 2);
-                if (weak.length === 0) return null;
+                if (!weak.length) return null;
                 const sInfo = SUBJECTS.find(s => s.id === subj);
                 return weak.slice(0, 3).map(([topic, data]) => (
                   <span key={`${subj}-${topic}`} className="tutor-weakness-chip" style={{ borderColor: sInfo?.color }}>
@@ -346,48 +328,36 @@ export default function AITutorScreen({ onBack, preset }) {
   }
 
   // ═══════════════════════════════════════════
-  //  渲染：选择上传类型
-  // ═══════════════════════════════════════════
-  if (step === 'upload-type') {
-    return (
-      <div className="screen">
-        <div className="screen-header">
-          <button className="btn-back" onClick={() => setStep('start')}>← 返回</button>
-          <h2>{subjectInfo.icon} {subjectInfo.label} · AI 助教</h2>
-          <div />
-        </div>
-        <div className="section-desc"><p>你要上传什么？</p></div>
-        <div className="tutor-upload-types">
-          {UPLOAD_TYPES.map(t => (
-            <button key={t.id} className="tutor-upload-type-card"
-              onClick={() => { setUploadType(t); setStep('upload'); }}>
-              <span className="tutor-upload-type-icon">{t.icon}</span>
-              <div className="tutor-upload-type-info">
-                <span className="tutor-upload-type-label">{t.label}</span>
-                <span className="tutor-upload-type-desc">{t.desc}</span>
-              </div>
-              <span className="tutor-upload-type-arrow">→</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  //  渲染：上传/输入页
+  //  渲染：上传页（支持多份内容）
   // ═══════════════════════════════════════════
   if (step === 'upload') {
+    const [textInput, setTextInput] = useState('');
     return (
       <div className="screen">
         <div className="screen-header">
-          <button className="btn-back" onClick={() => setStep('upload-type')}>← 返回</button>
-          <h2>{uploadType?.icon} 上传{uploadType?.label}</h2>
-          <div />
+          <button className="btn-back" onClick={() => { setItems([]); setStep('start'); }}>← 返回</button>
+          <h2>{subjectInfo.icon} 上传资料</h2><div />
         </div>
-        <PetCompanion size="small" mood={petMood} statusText={petStatus || '拍张照片，我来帮你分析！'} interactive gazeTracking />
         <div className="tutor-content">
-          {/* 双按钮：拍照 + 从相册选择 */}
+          <p className="upload-hint-text">上传作业、试卷、教材或错题（可多次上传），AI 会自动分类分析</p>
+
+          {/* 已添加的内容列表 */}
+          {items.length > 0 && (
+            <div className="upload-items-list">
+              {items.map((item, i) => (
+                <div key={i} className="upload-item-card">
+                  {item.preview ? (
+                    <img src={item.preview} alt="" className="upload-item-thumb" />
+                  ) : (
+                    <div className="upload-item-text-preview">{item.text.slice(0, 60)}...</div>
+                  )}
+                  <button className="upload-item-remove" onClick={() => removeItem(i)}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 添加按钮 */}
           <div className="upload-actions">
             <button className="upload-action-btn upload-camera" onClick={() => cameraRef.current?.click()}>
               <span className="upload-action-icon">📷</span>
@@ -395,65 +365,135 @@ export default function AITutorScreen({ onBack, preset }) {
             </button>
             <button className="upload-action-btn upload-gallery" onClick={() => galleryRef.current?.click()}>
               <span className="upload-action-icon">🖼️</span>
-              <span className="upload-action-label">从相册选择</span>
+              <span className="upload-action-label">相册</span>
             </button>
-            <input ref={cameraRef} type="file" accept="image/*" capture="environment"
-              style={{ display: 'none' }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ''; }} />
-            <input ref={galleryRef} type="file" accept="image/*"
-              style={{ display: 'none' }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f); e.target.value = ''; }} />
+            <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) addImageItem(f); e.target.value = ''; }} />
+            <input ref={galleryRef} type="file" accept="image/*" multiple style={{ display: 'none' }}
+              onChange={e => { [...(e.target.files || [])].forEach(f => addImageItem(f)); e.target.value = ''; }} />
           </div>
 
-          {/* 图片预览 */}
-          {imagePreview && (
-            <div className="upload-preview">
-              <img src={imagePreview} alt="已上传" className="upload-preview-img" />
-              <button className="btn btn-small btn-secondary upload-preview-clear"
-                onClick={() => { setImageData(null); setImagePreview(null); setOcrText(''); }}>
-                重新上传
-              </button>
+          {ocrLoading && <div className="upload-ocr-status"><span>识别中...</span></div>}
+
+          {/* 粘贴文本 */}
+          <div className="tutor-divider"><span>或粘贴文本内容</span></div>
+          <div className="upload-text-row">
+            <textarea className="review-textarea" rows={3}
+              placeholder={`粘贴${subjectInfo.label}题目或课本内容...`}
+              value={textInput} onChange={e => setTextInput(e.target.value)} />
+            <button className="btn btn-small btn-primary" disabled={!textInput.trim()}
+              onClick={() => { addTextItem(textInput); setTextInput(''); }}>
+              添加
+            </button>
+          </div>
+
+          {error && <div className="tutor-error">{error}</div>}
+
+          {/* 操作按钮 */}
+          <div className="upload-submit-area">
+            {items.length > 0 && (
+              <>
+                <button className="btn btn-primary tutor-submit-btn" onClick={handleClassify} disabled={loading}>
+                  {loading ? '🔍 分析中...' : `🤖 AI 智能分析（${items.length}份）`}
+                </button>
+                {items.length === 1 && items[0].imageData && (
+                  <button className="btn btn-secondary tutor-submit-btn" onClick={handleQuickDiagnose} disabled={loading}>
+                    ⚡ 快速诊断（单张）
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  //  渲染：AI 分析中
+  // ═══════════════════════════════════════════
+  if (step === 'classifying') {
+    return (
+      <div className="screen">
+        <div className="screen-header"><h2>🔍 AI 分析中</h2><div /></div>
+        <div className="analyzing-screen">
+          <div className="analyzing-animation">
+            <PetCompanion size="medium" mood="happy" statusText="正在智能分析..." interactive />
+          </div>
+          <div className="analyzing-steps">
+            <div className="analyzing-step active">📖 读取 {items.length} 份内容...</div>
+            <div className="analyzing-step">🏷️ 自动分类识别...</div>
+            <div className="analyzing-step">📊 分析知识点和难度...</div>
+            <div className="analyzing-step">📝 生成学习建议...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  //  渲染：AI 分组结果
+  // ═══════════════════════════════════════════
+  if (step === 'groups') {
+    return (
+      <div className="screen">
+        <div className="screen-header">
+          <button className="btn-back" onClick={() => setStep('upload')}>← 返回</button>
+          <h2>📊 AI 分析结果</h2><div />
+        </div>
+        <div className="tutor-content">
+          {/* 整体分析 */}
+          {overallAnalysis && (
+            <div className="groups-overall">
+              <div className="groups-overall-title">📋 整体分析</div>
+              {overallAnalysis.difficulty && <p className="groups-overall-row">难度：{overallAnalysis.difficulty}</p>}
+              {overallAnalysis.weakTopics?.length > 0 && (
+                <div className="groups-overall-row">
+                  薄弱点：{overallAnalysis.weakTopics.map(t => <span key={t} className="result-weak-tag">{t}</span>)}
+                </div>
+              )}
+              {overallAnalysis.suggestion && <p className="groups-overall-suggestion">💡 {overallAnalysis.suggestion}</p>}
             </div>
           )}
 
-          {/* OCR 进度 */}
-          {ocrLoading && (
-            <div className="upload-ocr-status">
-              <div className="upload-ocr-bar">
-                <div className="upload-ocr-fill" style={{ width: `${ocrProgress}%` }} />
-              </div>
-              <span>识别中 {ocrProgress}%...</span>
-            </div>
-          )}
-
-          {/* 文本输入 */}
-          <div className="tutor-divider"><span>{imagePreview ? '或直接编辑/补充内容' : '或直接粘贴内容'}</span></div>
-          <textarea className="review-textarea"
-            placeholder={uploadType?.id === 'textbook'
-              ? `粘贴${subjectInfo.label}课本内容...\n例如：分数加减法，同分母分数相加...`
-              : `粘贴${subjectInfo.label}题目或内容...\n例如：43×5=135，500−228=372...`}
-            value={inputText}
-            onChange={e => setInputText(e.target.value)}
-            rows={5} />
-
-          {/* 薄弱知识点提示 */}
-          {(state.wrongRecords[subject] || []).length > 0 && (
-            <div className="upload-weakness">
-              <span className="upload-weakness-label">🎯 该科薄弱点：</span>
-              {[...new Set((state.wrongRecords[subject] || []).map(r => r.category).filter(Boolean))].slice(0, 5).map(cat => {
-                const level = state.mastery[subject]?.[cat]?.level ?? 0;
-                const cls = level < 0.3 ? 'weak-high' : level < 0.6 ? 'weak-mid' : 'weak-low';
-                return <span key={cat} className={`upload-weakness-tag ${cls}`}>{cat}</span>;
-              })}
-            </div>
-          )}
+          {/* 分组列表 */}
+          <div className="groups-list">
+            <div className="groups-list-title">AI 自动分为 {groups.length} 组，选择要练习的内容：</div>
+            {groups.map(g => {
+              const typeInfo = TYPE_LABELS[g.type] || TYPE_LABELS.homework;
+              const isSelected = selectedGroups.has(g.id);
+              return (
+                <button key={g.id} className={`group-card ${isSelected ? 'group-selected' : ''}`}
+                  onClick={() => {
+                    const next = new Set(selectedGroups);
+                    if (isSelected) next.delete(g.id); else next.add(g.id);
+                    setSelectedGroups(next);
+                  }}>
+                  <div className="group-card-header">
+                    <span className="group-type-badge" style={{ background: typeInfo.color + '22', color: typeInfo.color }}>
+                      {typeInfo.icon} {typeInfo.label}
+                    </span>
+                    <span className="group-difficulty">{g.difficulty || ''}</span>
+                    <span className="group-check">{isSelected ? '✅' : '⬜'}</span>
+                  </div>
+                  <div className="group-label">{g.label}</div>
+                  {g.topics?.length > 0 && (
+                    <div className="group-topics">
+                      {g.topics.map(t => <span key={t} className="group-topic-tag">{t}</span>)}
+                    </div>
+                  )}
+                  {g.summary && <div className="group-summary">{g.summary}</div>}
+                </button>
+              );
+            })}
+          </div>
 
           {error && <div className="tutor-error">{error}</div>}
 
           <button className="btn btn-primary tutor-submit-btn"
-            onClick={() => handleAnalyze()}
-            disabled={loading || (!inputText.trim() && !imageData)}>
-            {loading ? '🔍 分析中...' : `🔍 开始AI分析`}
+            onClick={handleGenerateExam}
+            disabled={selectedGroups.size === 0 || loading}>
+            {loading ? '📝 生成中...' : `📝 生成练习题（${selectedGroups.size}组）`}
           </button>
         </div>
       </div>
@@ -461,208 +501,35 @@ export default function AITutorScreen({ onBack, preset }) {
   }
 
   // ═══════════════════════════════════════════
-  //  渲染：分析中
+  //  渲染：生成中
   // ═══════════════════════════════════════════
-  if (step === 'analyzing') {
+  if (step === 'generating') {
     return (
       <div className="screen">
-        <div className="screen-header">
-          <h2>🔍 AI 分析中</h2>
-          <div />
-        </div>
+        <div className="screen-header"><h2>📝 正在出题</h2><div /></div>
         <div className="analyzing-screen">
           <div className="analyzing-animation">
-            <PetCompanion size="medium" mood="happy" statusText="正在仔细分析..." interactive />
+            <PetCompanion size="medium" mood="happy" statusText="正在出题..." interactive />
           </div>
-          <div className="analyzing-steps">
-            <div className="analyzing-step active">📖 读取内容...</div>
-            <div className="analyzing-step">🔍 分析知识点...</div>
-            <div className="analyzing-step">📊 评估难度...</div>
-            <div className="analyzing-step">📝 生成建议...</div>
-          </div>
-          <p className="analyzing-hint">AI 正在根据你的{uploadType?.label}进行深度分析，请稍候...</p>
+          <p className="analyzing-hint">AI 正在根据选中的 {selectedGroups.size} 个分组生成针对性练习...</p>
         </div>
       </div>
     );
   }
 
   // ═══════════════════════════════════════════
-  //  渲染：分析结果
+  //  渲染：答题
   // ═══════════════════════════════════════════
-  if (step === 'result' && analysisResult) {
-    const isDiag = analysisResult.type === 'diagnosis';
-    const hasErrors = isDiag && analysisResult.errorCount > 0;
+  if (step === 'quiz' && examQuestions) {
     return (
       <div className="screen">
         <div className="screen-header">
-          <button className="btn-back" onClick={resetToStart}>← 返回</button>
-          <h2>{analysisResult.title}</h2>
-          <div />
+          <button className="btn-back" onClick={() => setStep('groups')}>← 返回</button>
+          <h2>📝 {examTitle}</h2><div />
         </div>
-        <div className="tutor-content">
-          <div className="result-card">
-            {isDiag ? (
-              <>
-                {hasErrors ? (
-                  <>
-                    <div className="result-big-number">{analysisResult.errorCount}</div>
-                    <div className="result-big-label">处可以做得更好</div>
-                    {analysisResult.firstMessage && <p className="result-message">{analysisResult.firstMessage}</p>}
-                    {/* 错误类型 */}
-                    {analysisResult.errorTypes?.length > 0 && (
-                      <div className="result-error-types">
-                        {analysisResult.errorTypes.map(t => {
-                          const cfg = ERROR_TYPE_CONFIG[t];
-                          return cfg ? (
-                            <div key={t} className="result-error-chip" style={{ background: cfg.color + '22', borderColor: cfg.color }}>
-                              <span>{cfg.icon}</span>
-                              <span>{cfg.label}</span>
-                            </div>
-                          ) : null;
-                        })}
-                      </div>
-                    )}
-                    {/* 难度评估 */}
-                    <div className="result-difficulty">
-                      <span className="result-diff-label">难度评估：</span>
-                      <span className={`result-diff-value ${analysisResult.difficulty === '偏难' ? 'diff-hard' : analysisResult.difficulty === '适中' ? 'diff-mid' : 'diff-easy'}`}>
-                        {analysisResult.difficulty}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="result-big-icon">🎉</div>
-                    <div className="result-big-label">全部正确！太棒了！</div>
-                    <p className="result-message">{analysisResult.firstMessage || '继续保持，你做得很好！'}</p>
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="result-big-icon">{uploadType?.icon || '📖'}</div>
-                <div className="result-big-label">{analysisResult.title}</div>
-                <p className="result-message">已生成 {analysisResult.questionCount} 道针对性练习题</p>
-              </>
-            )}
-
-            {/* 薄弱知识点 */}
-            {analysisResult.weakTopics?.length > 0 && (
-              <div className="result-weak-topics">
-                <span className="result-weak-label">🎯 薄弱知识点：</span>
-                <div className="result-weak-tags">
-                  {analysisResult.weakTopics.map(t => <span key={t} className="result-weak-tag">{t}</span>)}
-                </div>
-              </div>
-            )}
-
-            {/* 建议 */}
-            <div className="result-suggestion">
-              💡 <b>AI建议：</b>
-              {isDiag && hasErrors
-                ? '跟着引导一步步改正，养成检查好习惯！'
-                : '做几道练习题巩固一下吧！'}
-            </div>
-          </div>
-
-          <div className="result-actions">
-            {isDiag && hasErrors && diagnosis?.guidanceSteps?.length > 0 && (
-              <button className="btn btn-primary" onClick={handleNextAction}>🎯 开始引导纠错</button>
-            )}
-            {analysisResult.type === 'review' && (
-              <button className="btn btn-primary" onClick={handleNextAction}>📝 开始练习</button>
-            )}
-            {isDiag && !hasErrors && (
-              <button className="btn btn-primary" onClick={resetToStart}>返回</button>
-            )}
-            <button className="btn btn-secondary" onClick={resetToStart}>
-              {isDiag && hasErrors ? '先不改了' : '重新上传'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  //  渲染：引导纠错
-  // ═══════════════════════════════════════════
-  if (step === 'guidance' && diagnosis?.guidanceSteps) {
-    const steps = diagnosis.guidanceSteps;
-    const current = steps[guidanceIndex];
-    const cfg = ERROR_TYPE_CONFIG[current?.type] || {};
-    return (
-      <div className="screen">
-        <div className="screen-header">
-          <button className="btn-back" onClick={() => setStep('result')}>← 返回</button>
-          <h2>🎯 引导纠错</h2>
-          <div className="guidance-progress">{guidanceIndex + 1}/{steps.length}</div>
-        </div>
-        <div className="tutor-content">
-          <div className="guidance-card" style={{ borderColor: cfg.color || '#ddd' }}>
-            <div className="guidance-card-header">
-              <span className="guidance-card-icon">{cfg.icon || '💡'}</span>
-              <span className="guidance-card-type">{cfg.label || current.type}</span>
-            </div>
-            <div className="guidance-card-hint">{current.detectiveHint}</div>
-            <div className="guidance-card-strategy">
-              <span className="guidance-strategy-label">策略：</span>
-              <span>{cfg.strategy || current.strategy}</span>
-            </div>
-            <button className="btn btn-primary" onClick={handleGuidanceNext}>
-              {guidanceIndex < steps.length - 1 ? '👉 下一个' : '✅ 完成，开始习惯挑战'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  //  渲染：习惯挑战
-  // ═══════════════════════════════════════════
-  if (step === 'habit' && habitChallenge) {
-    const challenge = HABIT_CHALLENGES[habitChallenge.type] || habitChallenge;
-    return (
-      <div className="screen">
-        <div className="screen-header">
-          <button className="btn-back" onClick={() => setStep('guidance')}>← 返回</button>
-          <h2>🎯 好习惯挑战</h2>
-          <div />
-        </div>
-        <div className="tutor-content">
-          <div className="habit-challenge">
-            <div className="habit-challenge-icon">{challenge.icon || '🎯'}</div>
-            <div className="habit-challenge-title">{challenge.title || habitChallenge.title}</div>
-            <div className="habit-challenge-desc">{challenge.description || habitChallenge.description}</div>
-            {!habitDone ? (
-              <button className="btn btn-primary" onClick={handleHabitComplete}>✅ 完成挑战</button>
-            ) : (
-              <div className="habit-challenge-done">
-                <span>🎉 挑战完成！+3 🪙</span>
-                <button className="btn btn-primary" onClick={resetToStart}>返回</button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  //  渲染：复习答题
-  // ═══════════════════════════════════════════
-  if (step === 'quiz' && reviewQuestions) {
-    return (
-      <div className="screen">
-        <div className="screen-header">
-          <button className="btn-back" onClick={() => setStep('result')}>← 返回</button>
-          <h2>📝 AI 练习</h2>
-          <div />
-        </div>
-        <PetCompanion size="small" mood={petMood} celebrating={petMood === 'happy'} statusText={petStatus} interactive gazeTracking />
-        <QuizGame questions={reviewQuestions} onComplete={handleReviewComplete} onAnswer={handleReviewAnswer}
-          title={`${subjectInfo.icon} 练习`} showStory />
+        <PetCompanion size="small" mood={petMood} celebrating={petMood === 'happy'} statusText={petStatus} interactive />
+        <QuizGame questions={examQuestions} onComplete={handleComplete} onAnswer={handleAnswer}
+          title={examTitle} showStory />
         <RewardModal show={showReward} coins={rewardCoins} score={playerScore} total={playerTotal}
           message="练习完成！" onClose={handleRewardClose} />
       </div>
@@ -676,8 +543,7 @@ export default function AITutorScreen({ onBack, preset }) {
         <button className="btn-back" onClick={onBack}>← 返回</button>
         <h2>🧑‍🏫 AI 助教</h2><div />
       </div>
-      <p className="tutor-error">页面状态异常</p>
-      <button className="btn btn-primary" onClick={resetToStart}>重新开始</button>
+      <button className="btn btn-primary" onClick={resetAll}>重新开始</button>
     </div>
   );
 }

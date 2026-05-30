@@ -86,3 +86,15 @@ export async function generateReview({ subject, grade, textbookContent, imageDat
   });
   return res || null;
 }
+
+// AI 内容自动分类
+export async function classifyContent({ items, subject, grade }) {
+  const res = await fetchAPI('/tutor/classify', { items, subject, grade });
+  return res || null;
+}
+
+// AI 根据选中分组生成模拟试卷
+export async function generateExam({ subject, grade, groups, weakTopics, masteryData, count = 10 }) {
+  const res = await fetchAPI('/tutor/generate-exam', { subject, grade, groups, weakTopics, masteryData, count });
+  return res || null;
+}
