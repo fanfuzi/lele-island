@@ -89,12 +89,38 @@ export async function generateReview({ subject, grade, textbookContent, imageDat
 
 // AI 内容自动分类
 export async function classifyContent({ items, subject, grade }) {
-  const res = await fetchAPI('/tutor/classify', { items, subject, grade });
-  return res || null;
+  try {
+    const res = await fetch(`${API_BASE}/tutor/classify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items, subject, grade }),
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      return { groups: null, error: errBody.error || `服务器错误 ${res.status}` };
+    }
+    return await res.json();
+  } catch (e) {
+    console.warn('API classify failed:', e.message);
+    return { groups: null, error: e.message };
+  }
 }
 
 // AI 根据选中分组生成模拟试卷
 export async function generateExam({ subject, grade, groups, weakTopics, masteryData, count = 10 }) {
-  const res = await fetchAPI('/tutor/generate-exam', { subject, grade, groups, weakTopics, masteryData, count });
-  return res || null;
+  try {
+    const res = await fetch(`${API_BASE}/tutor/generate-exam`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject, grade, groups, weakTopics, masteryData, count }),
+    });
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      return { questions: null, error: errBody.error || `服务器错误 ${res.status}` };
+    }
+    return await res.json();
+  } catch (e) {
+    console.warn('API generate-exam failed:', e.message);
+    return { questions: null, error: e.message };
+  }
 }

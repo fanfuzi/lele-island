@@ -582,6 +582,16 @@ export async function onRequest(context) {
         return json(m ? JSON.parse(m[0]) : { questions: null });
       }
 
+      case 'ocr': {
+        const { image } = body;
+        if (!image) return json({ error: '缺少图片数据' }, 400);
+        const systemPrompt = `请提取这张图片中的所有文字内容。这是香港小学的课本或练习册页面，
+可能包含繁体中文、英文或数字。请完整、准确地提取所有文字，保持原有段落格式和顺序。
+如果图片中有算式，请保持数学符号的准确性。只输出文字内容，不要添加其他说明。`;
+        const text = await askDeepseek(systemPrompt, { text: '请提取这张图片中的所有文字内容。', image, mimeType: 'image/png' }, apiKey, 800, visionModel);
+        return json({ text: text || null });
+      }
+
       case 'tutor/classify': {
         const { items, subject, grade } = body;
         if (!items?.length) return json({ error: '缺少上传内容' }, 400);

@@ -79,23 +79,37 @@ export default function AITutorScreen({ onBack, preset }) {
     if (!file) return;
     setError('');
     try {
-      const dataUrl = await fileToBase64(file);
+      // 1. 压缩图片到 1024px（手机拍照太大，API 受不了）
+      const { dataUrl } = await compressImage(file);
+      const base64Data = dataUrl.split(',')[1];
+
       const newItem = {
         text: '',
-        imageData: dataUrl.split(',')[1],
+        imageData: base64Data,
         mimeType: file.type || 'image/png',
         preview: dataUrl,
       };
-      // OCR 尝试提取文字
+
+      // 2. 在线 AI 提取文字（跳过浏览器 Tesseract，质量太差）
       setOcrLoading(true);
       try {
-        const text = await ocrImage(file, () => {});
-        if (text && isValidText(text)) newItem.text = text;
-      } catch { /* ok */ }
+        const res = await fetch('/api/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64Data }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.text && data.text.trim().length >= 10) {
+            newItem.text = data.text.trim();
+          }
+        }
+      } catch { /* 在线 OCR 失败也没关系，后面 AI 直接看图 */ }
       setOcrLoading(false);
+
       setItems(prev => [...prev, newItem]);
-    } catch {
-      setError('图片加载失败');
+    } catch (e) {
+      setError('图片加载失败: ' + e.message);
     }
   }
 
@@ -115,6 +129,24 @@ export default function AITutorScreen({ onBack, preset }) {
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+  }
+
+  // === 图片压缩（手机拍照通常太大，压缩后传给 AI） ===
+  async function compressImage(file, maxDim = 1024) {
+    const dataUrl = await fileToBase64(file);
+    const img = new Image();
+    img.src = dataUrl;
+    await new Promise(r => { img.onload = r; });
+    let { width, height } = img;
+    if (width <= maxDim && height <= maxDim) return { dataUrl, needCompress: false };
+    if (width > height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+    else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, width, height);
+    const compressed = canvas.toDataURL(file.type || 'image/jpeg', 0.85);
+    return { dataUrl: compressed, needCompress: true };
   }
 
   // === 核心：AI 自动分类 ===
@@ -168,10 +200,14 @@ export default function AITutorScreen({ onBack, preset }) {
     }));
 
     try {
-      // 把选中分组对应的原始内容传给 AI
+      // 把选中分组对应的原始内容传给 AI（去掉 preview 避免 payload 过大）
       const selectedGroupsData = selected.map(g => ({
         ...g,
-        items: (g.itemIndices || []).map(idx => items[idx]).filter(Boolean),
+        items: (g.itemIndices || []).map(idx => items[idx]).filter(Boolean).map(i => ({
+          text: i.text || undefined,
+          imageData: i.imageData || undefined,
+          mimeType: i.mimeType || undefined,
+        })),
       }));
 
       const result = await generateExam({
@@ -186,7 +222,9 @@ export default function AITutorScreen({ onBack, preset }) {
         setExamTitle(result.examTitle || `${subjectInfo.label}模拟练习`);
         setStep('quiz');
       } else {
-        setError('AI 出题失败，请重试');
+        // 尝试提取服务端错误信息
+        const serverMsg = result?.error || (result ? 'AI 返回内容无法解析' : 'API 无响应');
+        setError(`AI 出题失败: ${serverMsg}`);
         setStep('groups');
       }
     } catch (e) {

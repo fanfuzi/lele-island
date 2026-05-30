@@ -597,18 +597,18 @@ app.post('/api/generate-template', async (req, res) => {
   res.json({ templates: [] });
 });
 
-// ===== AI 助教：OCR 文字识别（仅 Claude Vision） =====
+// ===== AI 助教：OCR 文字识别（支持 Claude 和 DeepSeek 双模态） =====
 app.post('/api/ocr', async (req, res) => {
   const { image } = req.body;
   if (!image) return res.status(400).json({ error: '缺少图片数据' });
-  if (provider !== 'anthropic') return res.json({ text: null });
+  if (!provider || !config?.apiKey) return res.json({ text: null });
 
   const systemPrompt = `请提取这张图片中的所有文字内容。这是香港小学的课本或练习册页面，
 可能包含繁体中文、英文或数字。请完整、准确地提取所有文字，保持原有段落格式和顺序。
-如果图片中有算式，请保持数学符号的准确性。`;
+如果图片中有算式，请保持数学符号的准确性。只输出文字内容，不要添加其他说明。`;
 
-  const text = await askClaude(systemPrompt, { text: '请提取这张图片中的所有文字内容。', image, mimeType: 'image/png' }, 800);
-  res.json({ text });
+  const text = await askAI(systemPrompt, { text: '请提取这张图片中的所有文字内容。', image, mimeType: 'image/png' }, 800);
+  res.json({ text: text || null });
 });
 
 // ===== AI 助教：作业诊断（核心引导式教学） =====
