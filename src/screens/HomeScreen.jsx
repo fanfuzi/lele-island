@@ -23,7 +23,6 @@ export default function HomeScreen({ onNavigate }) {
   const studyMin = state.dailyStudyMinutes || 0;
   const playAvailable = state.playMinutesAvailable || 0;
   const sessionLen = state.studySessionMinutes || 25;
-  const playLen = state.playSessionMinutes || 10;
   const canPetPlay = playAvailable > 0;
   const studySinceLastUnlock = studyMin % sessionLen;
   const studyProgress = (studySinceLastUnlock / sessionLen) * 100;
@@ -99,11 +98,11 @@ export default function HomeScreen({ onNavigate }) {
         </div>
         {canPetPlay ? (
           <div className="progress-hint progress-hint-ok">
-            🎉 可以玩耍了！还剩 <b>{playAvailable}</b> 分钟 · 再学 {minutesToNextUnlock} 分解锁下一轮
+            🎉 学习达标！🐾 宠物屋 + 🛒 商店已开放（还剩 <b>{playAvailable}</b> 分钟）
           </div>
         ) : (
           <div className="progress-hint">
-            ⚡ 再学 <b>{minutesToNextUnlock}</b> 分钟，解锁 {playLen} 分钟玩耍！{completedCycles > 0 ? `（今日已完成${completedCycles}轮）` : ''}
+            🔒 再学 <b>{minutesToNextUnlock}</b> 分钟，解锁宠物屋和商店！{completedCycles > 0 ? `（今日已完成${completedCycles}轮）` : ''}
           </div>
         )}
       </div>
@@ -152,18 +151,21 @@ export default function HomeScreen({ onNavigate }) {
       <div className="home-bottom-actions">
         <button
           className={`bottom-action-btn ${canPetPlay ? 'action-ready' : 'action-locked'}`}
-          onClick={() => onNavigate('pet-room')}
+          onClick={() => canPetPlay && onNavigate('pet-room')}
         >
           <span className="action-icon">{canPetPlay ? '🏠' : '🔒'}</span>
           <span className="action-label">宠物屋</span>
-          {canPetPlay && playLeft > 0 && <span className="action-badge">{playLeft}分</span>}
+          {canPetPlay && <span className="action-badge">{playAvailable}分</span>}
         </button>
         <button className="bottom-action-btn" onClick={() => onNavigate('tutor')}>
           <span className="action-icon">🧑‍🏫</span>
           <span className="action-label">AI助教</span>
         </button>
-        <button className="bottom-action-btn" onClick={() => onNavigate('shop')}>
-          <span className="action-icon">🛒</span>
+        <button
+          className={`bottom-action-btn ${canPetPlay ? 'action-ready' : 'action-locked'}`}
+          onClick={() => canPetPlay && onNavigate('shop')}
+        >
+          <span className="action-icon">{canPetPlay ? '🛒' : '🔒'}</span>
           <span className="action-label">商店</span>
         </button>
         <button className="bottom-action-btn" onClick={() => onNavigate('stats')}>

@@ -3212,7 +3212,10 @@ body {
   background: var(--pink-light);
 }
 .bottom-action-btn.action-locked {
-  opacity: 0.6;
+  opacity: 0.5;
+  filter: grayscale(0.5);
+  cursor: not-allowed;
+  pointer-events: none;
 }
 .bottom-action-btn .action-icon { font-size: 22px; }
 .bottom-action-btn .action-label { font-size: 11px; font-weight: 700; color: var(--text); }

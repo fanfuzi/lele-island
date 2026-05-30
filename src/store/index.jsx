@@ -86,7 +86,7 @@ const initialState = {
   // 每轮学习时长（分钟）— 学满后解锁玩耍
   studySessionMinutes: 25,
   // 每轮玩耍时长（分钟）
-  playSessionMinutes: 10,
+  playSessionMinutes: 5,
   // 当前剩余可玩时长（分钟）— 学完一轮+10，玩完归零
   playMinutesAvailable: 0,
   // 上次记录学习时间的时间戳
