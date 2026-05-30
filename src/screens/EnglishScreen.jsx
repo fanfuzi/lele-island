@@ -95,10 +95,14 @@ export default function EnglishScreen({ onBack }) {
     );
   }
 
-  if (gameMode === 'fill') {
-    const words = getTemplateGeneratedProblems({ subject: 'english', grade, count: 8, genre: 'computation' }).map(p => ({
+  // fill 模式的题目也需要缓存，否则每次重渲染都会重新生成
+  const fillProblems = useMemo(() => {
+    return getTemplateGeneratedProblems({ subject: 'english', grade, count: 8, genre: 'computation' }).map(p => ({
       id: `fill-${p.id}`, question: p.question.replace('_____', '______'), answer: p.answer, mode: 'text', hint: '填写正确的单词',
     }));
+  }, [grade]);
+
+  if (gameMode === 'fill') {
     return (
       <div className="screen">
         <div className="screen-header">
@@ -107,7 +111,7 @@ export default function EnglishScreen({ onBack }) {
           <div />
         </div>
         <PetCompanion mood={petMood} celebrating={petCelebrating} statusText={petStatus} interactive gazeTracking />
-        <FillInGame questions={words} onComplete={handleComplete} onAnswer={handleAnswer} title="Fill in the blank!" icon="✏️" />
+        <FillInGame questions={fillProblems} onComplete={handleComplete} onAnswer={handleAnswer} title="Fill in the blank!" icon="✏️" />
         <RewardModal show={showReward} coins={rewardCoins} score={playerScore} total={playerTotal} message="拼写完成！" onClose={handleRewardClose} />
       </div>
     );
