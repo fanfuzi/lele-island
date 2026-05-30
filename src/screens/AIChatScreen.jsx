@@ -30,7 +30,7 @@ export default function AIChatScreen({ onBack }) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [aiAvailable, setAiAvailable] = useState(true);
-  const [coins, setCoins] = useState(0);
+  const [earnedCoins, setEarnedCoins] = useState(0);
   const chatEndRef = useRef(null);
 
   // 检查AI状态
@@ -48,13 +48,18 @@ export default function AIChatScreen({ onBack }) {
   // 初始化场景
   function startScenario(s) {
     setScenario(s);
+    const systemMsg = {
+      role: 'system',
+      text: s.prompt,
+      translation: '',
+    };
     const initialMsg = {
       role: 'assistant',
       text: s.icon + ' ' + s.label + '时间！\n和团子一起练习粤语对话吧！',
       translation: '',
     };
-    setMessages([initialMsg]);
-    setCoins(0);
+    setMessages([systemMsg, initialMsg]);
+    setEarnedCoins(0);
   }
 
   // 发送消息
@@ -67,7 +72,7 @@ export default function AIChatScreen({ onBack }) {
     setInput('');
     setIsLoading(true);
 
-    // 获取AI回复
+    // 获取AI回复（包含场景提示作为 system 消息）
     let reply;
     if (aiAvailable) {
       const chatMessages = updated.map(m => ({
@@ -100,8 +105,9 @@ export default function AIChatScreen({ onBack }) {
     // 记录对话活动
     logActivity({ type: 'chat', subject: 'cantonese', gameType: 'chat', metadata: { messages: messages.length + 1 } });
 
-    // 对话奖励
-    setCoins(c => c + 1);
+    // 对话奖励（同步到全局 store）
+    setEarnedCoins(c => c + 1);
+    dispatch({ type: 'ADD_COINS', payload: 1 });
   }
 
   // 快速回复建议
@@ -115,7 +121,7 @@ export default function AIChatScreen({ onBack }) {
       <div className="screen-header">
         <button className="btn-back" onClick={onBack}>← 主页</button>
         <h2>🤖 AI粤语聊天</h2>
-        <div className="header-coin">⭐ +{coins}</div>
+        <div className="header-coin">🪙 +{earnedCoins}</div>
       </div>
 
       {!scenario ? (

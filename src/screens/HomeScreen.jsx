@@ -20,6 +20,14 @@ export default function HomeScreen({ onNavigate }) {
   const isNewDay = dailyProgress.date !== today;
   const petMood = getPetMood(state);
 
+  // 学习/玩耍状态
+  const studyMin = state.dailyStudyMinutes || 0;
+  const playMin = state.dailyPetPlayMinutes || 0;
+  const needStudy = state.minStudyMinutesToUnlockPet || 10;
+  const maxPlay = state.maxPetPlayMinutes || 15;
+  const canPetPlay = studyMin >= needStudy;
+  const playLeft = Math.max(0, maxPlay - playMin);
+
   // 教学日历
   const { week, tasks } = getDailyReviewTasks();
 
@@ -70,6 +78,33 @@ export default function HomeScreen({ onNavigate }) {
         </div>
         {tasks.some(t => t.isExam) && (
           <div className="daily-review-exam-notice">📌 本週為考試週，加油！</div>
+        )}
+      </div>
+
+      {/* 学习/玩耍进度 */}
+      <div className="study-pet-status">
+        <div className="study-pet-bar">
+          <span className="study-pet-label">📚 学习</span>
+          <div className="stat-bar-sm" style={{ flex: 1 }}>
+            <div className="stat-fill fill-green" style={{ width: `${Math.min(100, (studyMin / needStudy) * 100)}%` }} />
+          </div>
+          <span className="stat-value">{studyMin}/{needStudy}分钟</span>
+        </div>
+        <div className="study-pet-bar">
+          <span className="study-pet-label">🎾 玩耍</span>
+          <div className="stat-bar-sm" style={{ flex: 1 }}>
+            <div className="stat-fill fill-orange" style={{ width: `${100 - (playLeft / maxPlay) * 100}%` }} />
+          </div>
+          <span className="stat-value">{playLeft}/{maxPlay}分钟</span>
+        </div>
+        {!canPetPlay && (
+          <div className="study-pet-hint">📖 再学习 {needStudy - studyMin} 分钟就可以和宠物玩耍啦！</div>
+        )}
+        {canPetPlay && playLeft > 0 && (
+          <div className="study-pet-hint study-pet-ok">✅ 你可以在宠物屋和团子玩耍啦！还剩 {playLeft} 分钟</div>
+        )}
+        {canPetPlay && playLeft <= 0 && (
+          <div className="study-pet-hint">⏰ 今日玩耍时间已用完，明天再来吧！</div>
         )}
       </div>
 

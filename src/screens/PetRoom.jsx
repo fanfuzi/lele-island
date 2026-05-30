@@ -24,6 +24,15 @@ export default function PetRoom({ onBack }) {
   const [petAction, setPetAction] = useState(null);
   const [dragPos, setDragPos] = useState({});
   const dragRef = useRef(null);
+  const playTimerRef = useRef(null);
+
+  // 家长控制：学习解锁 & 玩宠物上限
+  const studyMinutes = state.dailyStudyMinutes || 0;
+  const playMinutes = state.dailyPetPlayMinutes || 0;
+  const minStudy = state.minStudyMinutesToUnlockPet || 10;
+  const maxPlay = state.maxPetPlayMinutes || 15;
+  const canPlay = studyMinutes >= minStudy;
+  const playTimeRemaining = Math.max(0, maxPlay - playMinutes);
   const sceneRef = useRef(null);
 
   // 家具拖动（全部用 ref 避免闭包过期问题）
@@ -83,7 +92,13 @@ export default function PetRoom({ onBack }) {
   }
 
   function handlePlay() {
+    // 检查是否需要先学习
+    if (!canPlay) return;
+    // 检查是否还有玩耍时间
+    if (playTimeRemaining <= 0) return;
+
     dispatch({ type: 'PLAY_WITH_PET', payload: 15 });
+    dispatch({ type: 'USE_PET_PLAY_TIME', payload: 1 });
     setPetAction('playing');
     logActivity({ type: 'pet', subject: null, gameType: 'play' });
     setTimeout(() => setPetAction(null), 2000);
@@ -126,7 +141,7 @@ export default function PetRoom({ onBack }) {
         <button className="btn-back" onClick={onBack}>← 主页</button>
         <h2>🏠 宠物屋</h2>
         <div className="header-coins">
-          <span style={{ marginRight: 8 }}>⭐ {state.coins}</span>
+          <span style={{ marginRight: 8 }}>🪙 {state.coins}</span>
           <span>🌟 {state.stars}</span>
         </div>
       </div>
@@ -221,8 +236,13 @@ export default function PetRoom({ onBack }) {
         <button className="action-btn" onClick={handleFeed} disabled={state.coins < 2}>
           🍪 喂食
         </button>
-        <button className="action-btn" onClick={handlePlay}>
-          🎾 玩耍
+        <button
+          className="action-btn"
+          onClick={handlePlay}
+          disabled={!canPlay || playTimeRemaining <= 0}
+          title={!canPlay ? `需要先学习${minStudy}分钟才能玩耍` : playTimeRemaining <= 0 ? '今日玩耍时间已用完' : ''}
+        >
+          🎾 {!canPlay ? '🔒 玩耍' : playTimeRemaining <= 0 ? '玩耍(已满)' : '玩耍'}
         </button>
         <button className="action-btn" onClick={handleClean} disabled={pet.cleanliness >= 95}>
           🧼 清洁
@@ -230,6 +250,23 @@ export default function PetRoom({ onBack }) {
         <button className="action-btn" onClick={() => setShowFurniture(!showFurniture)}>
           🛋️ 家具
         </button>
+      </div>
+
+      {/* 家长控制提示 */}
+      <div className="pet-parent-hint">
+        {!canPlay ? (
+          <div className="hint-bar hint-bar-warn">
+            📚 今日已学习 {studyMinutes}/{minStudy} 分钟，学习达标后才能和宠物玩耍哦！
+          </div>
+        ) : playTimeRemaining <= 3 ? (
+          <div className="hint-bar hint-bar-warn">
+            ⏰ 今日玩耍时间还剩 {playTimeRemaining} 分钟（共 {maxPlay} 分钟）
+          </div>
+        ) : (
+          <div className="hint-bar">
+            📚 已学习 {studyMinutes} 分钟 · 🎾 今日还能玩 {playTimeRemaining}/{maxPlay} 分钟
+          </div>
+        )}
       </div>
 
       {/* 家具摆放面板 */}

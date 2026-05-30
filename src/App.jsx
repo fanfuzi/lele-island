@@ -299,6 +299,39 @@ function AppContent() {
               <p className="settings-hint">家长在"家长中心"输入此邀请码即可查看你的学习报告</p>
             </div>
 
+            {/* 家长控制：学习解锁 & 玩宠物上限 */}
+            <div className="settings-section">
+              <label className="settings-label">🔒 家长控制</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13, minWidth: 120 }}>📚 学习解锁时间</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="120"
+                    value={state.minStudyMinutesToUnlockPet || 10}
+                    onChange={e => dispatch({ type: 'UPDATE_PET_PLAY_SETTINGS', payload: { minStudyMinutesToUnlockPet: Math.max(0, parseInt(e.target.value) || 0) } })}
+                    style={{ width: 60, padding: '4px 8px', border: '2px solid var(--pink-light)', borderRadius: 'var(--radius-sm)', fontSize: 14, textAlign: 'center' }}
+                  />
+                  <span style={{ fontSize: 13, color: 'var(--text-light)' }}>分钟</span>
+                </div>
+                <p className="settings-hint">孩子需要学习这么多分钟后才能和宠物玩耍</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13, minWidth: 120 }}>🎾 每日玩耍上限</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="120"
+                    value={state.maxPetPlayMinutes || 15}
+                    onChange={e => dispatch({ type: 'UPDATE_PET_PLAY_SETTINGS', payload: { maxPetPlayMinutes: Math.max(0, parseInt(e.target.value) || 0) } })}
+                    style={{ width: 60, padding: '4px 8px', border: '2px solid var(--pink-light)', borderRadius: 'var(--radius-sm)', fontSize: 14, textAlign: 'center' }}
+                  />
+                  <span style={{ fontSize: 13, color: 'var(--text-light)' }}>分钟</span>
+                </div>
+                <p className="settings-hint">孩子每天最多可以和宠物互动这么久</p>
+              </div>
+            </div>
+
             <div className="settings-section">
               <label className="settings-label">👨‍👩‍👧 家长中心</label>
               {!parentMode ? (

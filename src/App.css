@@ -377,6 +377,30 @@ body {
 }
 .quick-btn:hover { background: var(--yellow-light); }
 
+/* ===== 学习/玩耍进度 ===== */
+.study-pet-status {
+  padding: 10px 16px;
+  background: white;
+  margin: 0 16px 8px;
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.study-pet-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.study-pet-label { font-size: 13px; min-width: 60px; }
+.study-pet-hint {
+  font-size: 12px;
+  color: #999;
+  text-align: center;
+  padding: 4px 0 0;
+}
+.study-pet-ok { color: #4CAF50; }
+
 /* ===== AI 助教入口（首页） ===== */
 .home-tutor-section {
   padding: 0 16px;
@@ -1226,6 +1250,20 @@ body {
 }
 .action-btn:active { transform: scale(0.96); }
 .action-btn:disabled { opacity: 0.5; }
+.pet-parent-hint { margin-top: 8px; }
+.hint-bar {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: #666;
+  background: #f8f8f8;
+  text-align: center;
+}
+.hint-bar-warn {
+  background: #FFF3E0;
+  color: #E65100;
+  border: 1px solid #FFB74D;
+}
 .customize-panel { background: white; border-radius: var(--radius); padding: 14px; }
 .customize-panel h3 { font-size: 15px; margin-bottom: 10px; }
 .pet-type-grid { display: flex; gap: 8px; }

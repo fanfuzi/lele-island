@@ -95,20 +95,23 @@ export function generateFromTemplate(template) {
       }
     }
 
-    // 如果干扰项不够，补充一些
+    // 如果干扰项不够，补充一些（仅对数值型答案生效）
     if (distVals.size < 2) {
-      const offset = correctAnswer.includes('.') ? 0.1 : 1;
-      const extra = [
-        String(Number(correctAnswer) + (randInt(1, 3) * 10 * offset)),
-        String(Number(correctAnswer) - (randInt(1, 3) * 10 * offset)),
-        String(Number(correctAnswer) + (randInt(1, 3) * 100 * offset)),
-      ];
-      for (const v of extra) {
-        if (v !== correctAnswer && !distVals.has(v)) {
-          distVals.add(v);
-          distLabels.push('計算錯誤');
+      const numVal = Number(correctAnswer);
+      if (!isNaN(numVal)) {
+        const offset = correctAnswer.includes('.') ? 0.1 : 1;
+        const extra = [
+          String(numVal + (randInt(1, 3) * 10 * offset)),
+          String(numVal - (randInt(1, 3) * 10 * offset)),
+          String(numVal + (randInt(1, 3) * 100 * offset)),
+        ];
+        for (const v of extra) {
+          if (v !== correctAnswer && !distVals.has(v) && v !== 'NaN') {
+            distVals.add(v);
+            distLabels.push('計算錯誤');
+          }
+          if (distVals.size >= 3) break;
         }
-        if (distVals.size >= 3) break;
       }
     }
 

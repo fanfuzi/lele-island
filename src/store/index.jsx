@@ -76,6 +76,17 @@ const initialState = {
   habitLog: [],
   // 诊断记录
   diagnosisHistory: [],
+  // === 家长控制 ===
+  // 今日学习时长（分钟），完成题目时累加
+  dailyStudyMinutes: 0,
+  // 今日已玩宠物时长（分钟），玩时累加
+  dailyPetPlayMinutes: 0,
+  // 玩宠物前需要的学习时长（分钟）
+  minStudyMinutesToUnlockPet: 10,
+  // 每日宠物互动上限（分钟）
+  maxPetPlayMinutes: 15,
+  // 上次记录学习时间的时间戳
+  lastStudyTick: 0,
 };
 
 function loadState() {
@@ -111,6 +122,14 @@ function loadState() {
       }
 
       merged.lastActive = now;
+
+      // 新的一天重置每日计数器
+      const todayStr = new Date().toDateString();
+      if (merged.dailyProgress.date !== todayStr) {
+        merged.dailyStudyMinutes = 0;
+        merged.dailyPetPlayMinutes = 0;
+      }
+
       return merged;
     }
   } catch (e) {
@@ -131,7 +150,17 @@ function gameReducer(state, action) {
   switch (action.type) {
     case 'INIT': {
       if (!action.payload) return initialState;
-      return { ...initialState, ...action.payload };
+      // Deep merge to prevent losing nested fields from initialState
+      const p = action.payload;
+      return {
+        ...initialState,
+        ...p,
+        pet: { ...initialState.pet, ...p.pet },
+        dailyProgress: { ...initialState.dailyProgress, ...p.dailyProgress },
+        stats: { ...initialState.stats, ...p.stats },
+        wrongRecords: { ...initialState.wrongRecords, ...p.wrongRecords },
+        mastery: { ...initialState.mastery, ...p.mastery },
+      };
     }
 
     case 'CHOOSE_PET': {
@@ -265,8 +294,8 @@ function gameReducer(state, action) {
         [subject]: { done: true, score, questionsDone },
       };
 
-      // 检查是否三个都完成了
-      const allDone = ['cantonese', 'chinese', 'math'].every(
+      // 检查是否五个科目都完成了
+      const allDone = ['cantonese', 'chinese', 'math', 'english', 'gs'].every(
         s => newProgress[s].done
       );
 
@@ -307,6 +336,9 @@ function gameReducer(state, action) {
         newAchievements.push('level3');
       }
 
+      // 学习时长估算：每题约 30 秒
+      const studyGain = Math.max(1, Math.round(questionsDone * 0.5));
+
       return {
         ...state,
         dailyProgress: newProgress,
@@ -325,6 +357,8 @@ function gameReducer(state, action) {
           totalQuestions: state.stats.totalQuestions + questionsDone,
           correctAnswers: state.stats.correctAnswers + Math.round(score / 100 * questionsDone),
         },
+        dailyStudyMinutes: (state.dailyStudyMinutes || 0) + studyGain,
+        lastStudyTick: Date.now(),
       };
     }
 
@@ -350,6 +384,8 @@ function gameReducer(state, action) {
         return {
           ...state,
           dailyProgress: { ...initialState.dailyProgress, date: today },
+          dailyStudyMinutes: 0,
+          dailyPetPlayMinutes: 0,
         };
       }
       return state;
@@ -480,6 +516,34 @@ function gameReducer(state, action) {
         ...state,
         diagnosisHistory: [...state.diagnosisHistory, diagnosisEntry],
         lastActive: Date.now(),
+      };
+    }
+
+    case 'ADD_STUDY_TIME': {
+      // 完成学习任务时调用，payload 为分钟数
+      const minutes = action.payload || 1;
+      return {
+        ...state,
+        dailyStudyMinutes: (state.dailyStudyMinutes || 0) + minutes,
+        lastStudyTick: Date.now(),
+      };
+    }
+
+    case 'USE_PET_PLAY_TIME': {
+      // 玩宠物时调用，payload 为分钟数
+      const minutes = action.payload || 1;
+      return {
+        ...state,
+        dailyPetPlayMinutes: (state.dailyPetPlayMinutes || 0) + minutes,
+      };
+    }
+
+    case 'UPDATE_PET_PLAY_SETTINGS': {
+      // 家长设置，payload: { minStudyMinutesToUnlockPet?, maxPetPlayMinutes? }
+      return {
+        ...state,
+        ...(action.payload.minStudyMinutesToUnlockPet !== undefined && { minStudyMinutesToUnlockPet: action.payload.minStudyMinutesToUnlockPet }),
+        ...(action.payload.maxPetPlayMinutes !== undefined && { maxPetPlayMinutes: action.payload.maxPetPlayMinutes }),
       };
     }
 

@@ -347,6 +347,7 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     ai: !!provider && !!config?.apiKey,
     provider: provider,
+    db: true,
   });
 });
 
