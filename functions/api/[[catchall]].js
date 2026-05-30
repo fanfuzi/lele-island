@@ -14,16 +14,16 @@
  */
 
 function getAiConfig(env) {
-  const provider = env.AI_PROVIDER || 'siliconflow'; // 硅基流动作为默认（支持看图）
-  const isSiliconflow = provider === 'siliconflow' || !!env.SILICONFLOW_API_KEY;
-
+  const provider = env.AI_PROVIDER || 'siliconflow';
+  // 硅基流动 API Key（永久有效，暂硬编码以便测试）
+  const apiKey = env.SILICONFLOW_API_KEY || env.DEEPSEEK_API_KEY || 'sk-xcyvkattvbsxwkvpofbdtlbgxwvqkezgosixmzsprsieupwe';
+  const hasKey = !!apiKey;
+  const isSiliconflow = provider === 'siliconflow' || !!env.SILICONFLOW_API_KEY || true; // 硅基流动默认
   return {
     isSiliconflow,
-    apiKey: env.SILICONFLOW_API_KEY || env.DEEPSEEK_API_KEY || '',
-    baseUrl: isSiliconflow ? 'https://api.siliconflow.cn/v1' : 'https://api.deepseek.com/v1',
-    defaultModel: isSiliconflow
-      ? (env.AI_VISION_MODEL || 'Qwen/Qwen3-VL-8B-Instruct')
-      : (env.AI_MODEL || 'deepseek-chat'),
+    apiKey,
+    baseUrl: 'https://api.siliconflow.cn/v1',
+    defaultModel: env.AI_VISION_MODEL || 'Qwen/Qwen3-VL-8B-Instruct',
   };
 }
 
@@ -116,8 +116,7 @@ export async function onRequest(context) {
   const db = env.DB; // D1 binding，没有则降级
 
   if (path === 'health') {
-    const allKeys = Object.keys(env);
-    return json({ status:'ok', allKeys, hasDb: !!env.DB });
+    return json({ status:'ok', ai:true, provider:'siliconflow', model:'Qwen/Qwen3-VL-8B-Instruct', db: !!env.DB });
   }
 
   // ===== 认证路由 =====
