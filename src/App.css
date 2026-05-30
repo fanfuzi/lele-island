@@ -576,6 +576,23 @@ body {
 }
 .story-hint { color: var(--text-light); }
 .story-text { color: var(--text); }
+
+/* 题目配图（AI 出题时引用的原图） */
+.quiz-image-wrap {
+  text-align: center; margin: 8px 0; cursor: pointer;
+  background: white; border-radius: var(--radius-sm); padding: 8px;
+  border: 2px solid #f0e8f0; position: relative;
+}
+.quiz-exam-image {
+  max-width: 100%; max-height: 300px; border-radius: 6px;
+  object-fit: contain; transition: all 0.3s;
+}
+.quiz-image-collapsed { max-height: 60px; opacity: 0.6; }
+.quiz-image-toggle {
+  display: block; font-size: 11px; color: var(--text-light);
+  margin-top: 4px; font-weight: 600;
+}
+
 .quiz-question {
   font-size: 22px;
   font-weight: 700;

@@ -689,6 +689,8 @@ export default function AITutorScreen({ onBack, preset }) {
   //  渲染：答题
   // ═══════════════════════════════════════════
   if (step === 'quiz' && examQuestions) {
+    // 从上传内容中取第一张图片作为题目配图（AI 引用图上的图形时学生也能看到）
+    const firstImg = items.find(i => i.imageData)?.preview || null;
     return (
       <div className="screen">
         <div className="screen-header">
@@ -697,7 +699,7 @@ export default function AITutorScreen({ onBack, preset }) {
         </div>
         <PetCompanion size="small" mood={petMood} celebrating={petMood === 'happy'} statusText={petStatus} interactive />
         <QuizGame questions={examQuestions} onComplete={handleComplete} onAnswer={handleAnswer}
-          title={examTitle} showStory />
+          title={examTitle} showStory examImage={firstImg} />
         <RewardModal show={showReward} coins={rewardCoins} score={playerScore} total={playerTotal}
           message="练习完成！" onClose={handleRewardClose} />
       </div>

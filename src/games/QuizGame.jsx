@@ -61,13 +61,14 @@ function answerMatches(selected, question) {
  *   showStory: boolean (是否显示故事上下文)
  *   onAnswer: (correct) => void (每题即时回调)
  */
-export default function QuizGame({ questions, onComplete, title, showStory = true, onAnswer }) {
+export default function QuizGame({ questions, onComplete, title, showStory = true, onAnswer, examImage }) {
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
   const [finished, setFinished] = useState(false);
   const [showStoryText, setShowStoryText] = useState(true);
+  const [showImage, setShowImage] = useState(!!examImage);
   const feedbackTimer = useRef(null);
 
   const question = questions[current];
@@ -170,6 +171,14 @@ export default function QuizGame({ questions, onComplete, title, showStory = tru
         <div className="quiz-story" onClick={() => setShowStoryText(false)}>
           {showStoryText && <span className="story-hint">📖 点击看故事</span>}
           {!showStoryText && <span className="story-text">{question.story}</span>}
+        </div>
+      )}
+
+      {/* 题目配图（AI 看过的原图，让小孩也能看到） */}
+      {examImage && (
+        <div className="quiz-image-wrap" onClick={() => setShowImage(!showImage)}>
+          <img src={examImage} alt="题目配图" className={`quiz-exam-image ${showImage ? '' : 'quiz-image-collapsed'}`} />
+          <span className="quiz-image-toggle">{showImage ? '👆 收起图片' : '👆 点击查看原图'}</span>
         </div>
       )}
 
