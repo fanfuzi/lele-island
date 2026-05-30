@@ -75,10 +75,15 @@ export default function GSScreen({ onBack }) {
     }];
   }, []);
 
+  // 无限练习的题目也需要缓存，否则每次重渲染都会重新生成
+  const generatedProblems = useMemo(() => {
+    if (gameMode !== 'generated') return [];
+    return getTemplateGeneratedProblems({ subject: 'gs', grade, count: 10, genre: 'word-problem' })
+      .map(p => ({ id: p.id, question: p.question, answer: p.answer, options: p.options, category: 'general' }));
+  }, [gameMode, grade]);
+
   if (gameMode === 'quiz' || gameMode === 'generated') {
-    const problems = gameMode === 'generated'
-      ? getTemplateGeneratedProblems({ subject: 'gs', grade, count: 10, genre: 'word-problem' }).map(p => ({ id: p.id, question: p.question, answer: p.answer, options: p.options, category: 'general' }))
-      : quizProblems;
+    const problems = gameMode === 'generated' ? generatedProblems : quizProblems;
     return (
       <div className="screen">
         <div className="screen-header">
@@ -88,7 +93,7 @@ export default function GSScreen({ onBack }) {
         </div>
         <PetCompanion mood={petMood} celebrating={petCelebrating} statusText={petStatus} interactive gazeTracking />
         {problems.length > 0 ? (
-          <QuizGame questions={problems} onComplete={handleComplete} onAnswer={handleAnswer} title="常识小百科！" />
+          <QuizGame key={gameMode} questions={problems} onComplete={handleComplete} onAnswer={handleAnswer} title="常识小百科！" />
         ) : (
           <div className="empty-state">暂无题目</div>
         )}
