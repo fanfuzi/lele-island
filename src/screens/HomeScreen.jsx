@@ -3,8 +3,6 @@ import { useGame, getPetEmoji, getPetMood } from '../store';
 import PetCompanion from '../components/PetCompanion';
 import { logActivity } from '../utils/activityLog';
 import { speakPet } from '../utils/speech';
-import { getDailyReviewTasks } from '../data/curriculum/hk-p3-calendar';
-import { KNOWLEDGE_FRAMEWORK } from '../data/curriculum/knowledgeFramework';
 
 // 5个学科区域（岛屿地图）
 const ISLAND_ZONES = [

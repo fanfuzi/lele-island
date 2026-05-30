@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useGame, getPetEmoji, getPetMood } from '../store';
 import { shopItems } from '../data/shopItems';
-import ProgressBar from '../components/ProgressBar';
 import PetCompanion from '../components/PetCompanion';
 import { logActivity } from '../utils/activityLog';
 
