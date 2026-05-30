@@ -593,6 +593,16 @@ body {
   margin-top: 4px; font-weight: 600;
 }
 
+/* AI 生成的 SVG 图形 */
+.quiz-diagram-wrap {
+  text-align: center; margin: 8px auto; padding: 12px;
+  background: white; border-radius: var(--radius-sm);
+  border: 2px solid var(--blue-light); max-width: 280px;
+}
+.quiz-diagram-wrap svg {
+  max-width: 100%; height: auto;
+}
+
 .quiz-question {
   font-size: 22px;
   font-weight: 700;

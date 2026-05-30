@@ -907,12 +907,13 @@ app.post('/api/tutor/generate-exam', async (req, res) => {
   "questions": [
     {
       "id": "EX-1",
-      "question": "题目文字",
+      "question": "题目文字，如果引用了图形请用【图】标记",
       "answer": "正确答案的文字（不要用ABCD字母！必须是选项数组中实际出现的文本值）",
       "options": ["错误选项1", "正确答案", "错误选项2", "错误选项3"],
       "category": "知识点",
       "difficulty": 1-3,
-      "hint": "解题提示"
+      "hint": "解题提示",
+      "diagram": "如果题目涉及图形（几何图形、图表、数轴等），在此用SVG画出。用viewBox="0 0 200 150"，只画图形不写答案。不需要图形时设为null"
     }
   ],
   "summary": {

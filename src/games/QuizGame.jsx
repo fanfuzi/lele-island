@@ -182,6 +182,11 @@ export default function QuizGame({ questions, onComplete, title, showStory = tru
         </div>
       )}
 
+      {/* AI 生成的图形（SVG 几何图、数轴等），和题目一一对应 */}
+      {question.diagram && (
+        <div className="quiz-diagram-wrap" dangerouslySetInnerHTML={{ __html: question.diagram }} />
+      )}
+
       <div className="quiz-question">{question.question}</div>
 
       {question.estimationTip && (
