@@ -196,7 +196,13 @@ export default function AITutorScreen({ onBack, preset }) {
           mastery: state.mastery[subject] || {},
           wrongRecords: (state.wrongRecords[subject] || []).slice(-20),
         };
-        const archivePayload = { subject, grade, title, createdAt: Date.now(), items, groups: finalGroups, overallAnalysis: result?.overallAnalysis || null, weakSnapshot, practiced: false };
+        // 存档时去掉大字段，只保留文字摘要（图片数据用于AI看一次就够了，重新出题用groups即可）
+        const lightItems = items.map(i => ({
+          text: i.text || undefined,
+          mimeType: i.mimeType || undefined,
+          hasImage: !!i.imageData,     // 只记录是否有图，不存数据
+        }));
+        const archivePayload = { subject, grade, title, createdAt: Date.now(), items: lightItems, groups: finalGroups, overallAnalysis: result?.overallAnalysis || null, weakSnapshot, practiced: false };
         dispatch({ type: 'SAVE_UPLOAD_ARCHIVE', payload: archivePayload });
         // 保存后从 localStorage 获取新 ID
         try {
@@ -445,7 +451,7 @@ export default function AITutorScreen({ onBack, preset }) {
                 const sInfo = SUBJECT_MAP[a.subject] || SUBJECTS[0];
                 const date = new Date(a.createdAt).toLocaleDateString('zh-HK', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
                 const itemSummary = a.items?.length > 0
-                  ? (a.items.find(i => i.text)?.text?.slice(0, 40) || `${a.items.length}份图片`)
+                  ? (a.items.find(i => i.text)?.text?.slice(0, 40) || (a.items.some(i => i.hasImage) ? `${a.items.length}份图片` : ''))
                   : '';
                 const weakTags = (a.weakSnapshot?.mastery ? Object.entries(a.weakSnapshot.mastery).filter(([, d]) => d.level < 0.5 && d.total >= 2).map(([t]) => t) : []).slice(0, 3);
 

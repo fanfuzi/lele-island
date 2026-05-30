@@ -536,7 +536,7 @@ function gameReducer(state, action) {
       const archive = { ...action.payload, id: Date.now() + '-' + Math.random().toString(36).slice(2, 6) };
       return {
         ...state,
-        uploadArchives: [archive, ...state.uploadArchives],
+        uploadArchives: [archive, ...state.uploadArchives].slice(0, 20), // 最多保留20条
         lastActive: Date.now(),
       };
     }
