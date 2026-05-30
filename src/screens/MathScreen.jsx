@@ -9,6 +9,7 @@ import OrderGame from '../games/OrderGame';
 import GridGame from '../games/GridGame';
 import SortGame from '../games/SortGame';
 import StepSolverGame from '../games/StepSolverGame';
+import TimedMathGame from '../games/TimedMathGame';
 import RewardModal from '../components/RewardModal';
 import PetCompanion from '../components/PetCompanion';
 import MistakeAnalysis from '../components/MistakeAnalysis';
@@ -18,6 +19,7 @@ import { getCurriculumLevel, GRADE_MAP } from '../data/curriculum/curriculumMap'
 
 const GAMES = [
   { id: 'speed', label: '口算快抢', icon: '⚡', desc: '限时挑战，练速度' },
+  { id: 'timed', label: '计时混合运算', icon: '⏱️', desc: '混合运算+每题倒计时' },
   { id: 'quiz', label: '闯关挑战', icon: '🎯', desc: '选择题闯关' },
   { id: 'fill', label: '填空计算', icon: '✏️', desc: '写出答案' },
   { id: 'generated', label: '无限练习', icon: '♾️', desc: '题目不重复' },
@@ -263,6 +265,33 @@ export default function MathScreen({ onBack }) {
         });
       }
     }
+  }
+
+  if (gameMode === 'timed') {
+    return (
+      <div className="screen">
+        <div className="screen-header">
+          <button className="btn-back" onClick={() => setGameMode(null)}>← 返回</button>
+          <h2>⏱️ 计时混合运算</h2>
+          <div />
+        </div>
+        <PetCompanion mood={petMood} celebrating={petCelebrating} statusText={petStatus} interactive gazeTracking />
+        <TimedMathGame
+          level={unlockedLevel}
+          questionCount={12}
+          onComplete={handleComplete}
+          onAnswer={handleAnswer}
+        />
+        <RewardModal
+          show={showReward}
+          coins={rewardCoins}
+          score={playerScore}
+          total={playerTotal}
+          message="计时挑战完成！"
+          onClose={handleRewardClose}
+        />
+      </div>
+    );
   }
 
   if (gameMode === 'speed') {
