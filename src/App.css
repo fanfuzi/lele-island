@@ -1429,6 +1429,21 @@ body {
 .wearing-name { flex: 1; font-size: 13px; font-weight: 600; }
 .btn-remove { padding: 4px 12px; border: 1px solid #ff4444; border-radius: 6px; background: white; color: #ff4444; cursor: pointer; font-size: 12px; }
 
+/* 宠物屋/商店锁定页 */
+.pet-locked-screen {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 16px; padding: 40px 32px; text-align: center;
+}
+.pet-locked-icon { font-size: 64px; animation: lockShake 1.5s ease infinite; }
+@keyframes lockShake {
+  0%, 100% { transform: translateX(0); }
+  5%, 15%, 25% { transform: translateX(-4px); }
+  10%, 20% { transform: translateX(4px); }
+}
+.pet-locked-title { font-size: 22px; font-weight: 700; }
+.pet-locked-desc { font-size: 15px; color: var(--text-light); line-height: 1.6; }
+.pet-locked-studied { font-size: 14px; color: var(--text); background: var(--yellow-light); padding: 8px 16px; border-radius: var(--radius-sm); }
+
 /* Color picker */
 .color-picker-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0e8f0; }
 .color-picker-section h3 { font-size: 14px; margin-bottom: 8px; }

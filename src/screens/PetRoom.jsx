@@ -28,6 +28,30 @@ const PET_TYPES = [
 export default function PetRoom({ onBack }) {
   const { state, dispatch } = useGame();
   const { pet, inventory, furniture } = state;
+  const playMinutesAvailable = state.playMinutesAvailable || 0;
+
+  // 未解锁时显示锁定页，直接拦截
+  if (playMinutesAvailable <= 0) {
+    return (
+      <div className="screen">
+        <div className="screen-header">
+          <button className="btn-back" onClick={onBack}>← 返回</button>
+          <h2>🏠 宠物屋</h2><div />
+        </div>
+        <div className="pet-locked-screen">
+          <div className="pet-locked-icon">🔒</div>
+          <div className="pet-locked-title">宠物屋已上锁</div>
+          <div className="pet-locked-desc">
+            完成 <b>{state.studySessionMinutes || 25}</b> 分钟学习后，即可进入宠物屋和宠物玩耍！
+          </div>
+          <div className="pet-locked-studied">
+            今日已学习 <b>{state.dailyStudyMinutes || 0}</b> 分钟
+          </div>
+          <button className="btn btn-primary" onClick={onBack}>📚 去学习</button>
+        </div>
+      </div>
+    );
+  }
   const [showCustomize, setShowCustomize] = useState(false);
   const [showNameEdit, setShowNameEdit] = useState(false);
   const [showFurniture, setShowFurniture] = useState(false);
@@ -41,7 +65,6 @@ export default function PetRoom({ onBack }) {
 
   // 学习-玩耍循环机制
   const studyMinutes = state.dailyStudyMinutes || 0;
-  const playMinutesAvailable = state.playMinutesAvailable || 0;
   const sessionLen = state.studySessionMinutes || 25;
   const playLen = state.playSessionMinutes || 10;
   const canPlay = playMinutesAvailable > 0;
