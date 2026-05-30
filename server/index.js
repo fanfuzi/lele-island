@@ -908,8 +908,8 @@ app.post('/api/tutor/generate-exam', async (req, res) => {
     {
       "id": "EX-1",
       "question": "题目文字",
-      "answer": "正确答案",
-      "options": ["A", "B", "C", "D"],
+      "answer": "正确答案的文字（不要用ABCD字母！必须是选项数组中实际出现的文本值）",
+      "options": ["错误选项1", "正确答案", "错误选项2", "错误选项3"],
       "category": "知识点",
       "difficulty": 1-3,
       "hint": "解题提示"
@@ -930,7 +930,7 @@ ${groupsText}
 学生薄弱知识点：${allFocus.join('、') || '暂无'}
 掌握度数据：${JSON.stringify(masteryData || [])}
 
-请生成 ${count} 道模拟试卷题目。请直接分析图片中的原始内容出题，不要依赖 OCR 文本。`;
+请生成 ${count} 道模拟试卷题目。`;
 
   // 如果有图片，把图片也传给 AI（视觉模型可以直接看懂图片内容）
   const msg = firstImageItem

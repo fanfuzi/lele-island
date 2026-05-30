@@ -12,10 +12,43 @@ function shuffleArray(arr) {
 
 // 规范化答案比较：支持文本值和索引值两种格式
 function answerMatches(selected, question) {
+  if (!selected || !question) return false;
+
+  // 1. 直接匹配（AI 返回正确答案的文本）
   if (selected === question.answer) return true;
-  // AI 有时返回索引（数字）作为答案
-  const idx = Number(question.answer);
-  if (!isNaN(idx) && question.options && question.options[idx] === selected) return true;
+
+  const options = question.options || [];
+
+  // 2. 纯数字索引匹配（AI 有时返回数字如 0,1,2 作为答案）
+  const numIdx = Number(question.answer);
+  if (!isNaN(numIdx) && numIdx >= 0 && numIdx < options.length && options[numIdx] === selected) return true;
+
+  // 3. 字母索引匹配（AI 返回 "A"/"B"/"C"/"D" 表示第几个选项正确）
+  if (/^[A-Da-d]$/.test(question.answer)) {
+    const letterIdx = question.answer.toUpperCase().charCodeAt(0) - 65;
+    if (letterIdx >= 0 && letterIdx < options.length && options[letterIdx] === selected) return true;
+  }
+
+  // 4. 去除选项前缀比较（AI 有时写 "A. 43" 或 "A、43" 等）
+  const stripPrefix = (s) => ('' + s).replace(/^[A-Da-d][.、)\s]*/, '').trim();
+  const cleanSelected = stripPrefix(selected);
+  const cleanAnswer = stripPrefix(question.answer);
+
+  // 4a. 去前缀后直接匹配
+  if (cleanSelected === cleanAnswer) return true;
+
+  // 4b. 去前缀后匹配选项对应的位置
+  for (let i = 0; i < options.length; i++) {
+    if (stripPrefix(options[i]) === cleanSelected && stripPrefix(options[i]) === cleanAnswer) {
+      return true;
+    }
+    // AI 答案 = 字母，找到该字母对应的选项内容再比较
+    const optLetter = String.fromCharCode(65 + i);
+    if (question.answer.toUpperCase() === optLetter && stripPrefix(options[i]) === cleanSelected) {
+      return true;
+    }
+  }
+
   return false;
 }
 
