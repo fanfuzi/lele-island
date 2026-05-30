@@ -62,14 +62,14 @@ export default function HomeScreen({ onNavigate }) {
       {/* ═══════════ 顶部：宠物 + 每日激励 ═══════════ */}
       <div className="home-hero">
         <div className="home-hero-pet">
-          <PetCompanion size="medium" mood={petMood} interactive idleDetection gazeTracking />
+          <PetCompanion size="small" mood={petMood} interactive idleDetection gazeTracking />
         </div>
         <div className="home-hero-info">
           <div className="hero-greeting">
-            {getPetEmoji(pet.type)} {pet.name} Lv.{pet.level}
+            {getPetEmoji(pet.type)} {pet.name} <span className="hero-level">Lv.{pet.level}</span>
           </div>
           <div className="hero-motivation">{getMotivationText()}</div>
-          {streak > 0 && <div className="hero-streak">🔥 {streak}天</div>}
+          {streak > 0 && <span className="hero-streak">🔥 连续{streak}天</span>}
         </div>
       </div>
 
