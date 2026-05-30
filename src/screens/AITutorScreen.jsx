@@ -205,16 +205,17 @@ export default function AITutorScreen({ onBack, preset }) {
         }));
         const archivePayload = { subject, grade, title, createdAt: Date.now(), items: lightItems, groups: finalGroups, overallAnalysis: result?.overallAnalysis || null, weakSnapshot, practiced: false };
         dispatch({ type: 'SAVE_UPLOAD_ARCHIVE', payload: archivePayload });
+        // 立即直接写 localStorage（避免 useEffect 延迟导致的数据丢失）
+        try {
+          const raw = JSON.parse(localStorage.getItem('lele-island-data') || '{}');
+          const newId = Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+          raw.uploadArchives = [{ ...archivePayload, id: newId }, ...(raw.uploadArchives || [])].slice(0, 20);
+          localStorage.setItem('lele-island-data', JSON.stringify(raw));
+          setCurrentArchiveId(newId);
+        } catch {}
         // 立即同步到云端（不等30秒定时器）
         const stateAfterSave = { ...state, uploadArchives: [archivePayload, ...(state.uploadArchives || [])].slice(0, 20) };
         saveGameDataToServer(stateAfterSave);
-        // 保存后从 localStorage 获取新 ID
-        try {
-          const saved = JSON.parse(localStorage.getItem('lele-island-data') || '{}');
-          if (saved.uploadArchives?.length > 0) {
-            setCurrentArchiveId(saved.uploadArchives[0].id);
-          }
-        } catch {} // eslint-disable-line
       } catch (e) {
         console.warn('存档失败:', e.message);
       }

@@ -534,10 +534,12 @@ function gameReducer(state, action) {
     }
 
     case 'SAVE_UPLOAD_ARCHIVE': {
-      const archive = { ...action.payload, id: Date.now() + '-' + Math.random().toString(36).slice(2, 6) };
+      const archive = action.payload.id
+        ? action.payload
+        : { ...action.payload, id: Date.now() + '-' + Math.random().toString(36).slice(2, 6) };
       return {
         ...state,
-        uploadArchives: [archive, ...state.uploadArchives].slice(0, 20), // 最多保留20条
+        uploadArchives: [archive, ...(state.uploadArchives || [])].slice(0, 20),
         lastActive: Date.now(),
       };
     }
