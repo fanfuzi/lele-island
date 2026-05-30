@@ -19,7 +19,7 @@ function generateQuestions(count, level = 1) {
       const v1 = applyOp(a, op1, b);
       ans = applyOp(v1, c ? op2 : '+', c || 0);
       if (!Number.isFinite(ans) || ans < 0 || ans > 9999) { i--; continue; }
-      results.push({ id: `T${i}-${Date.now()}`, question: `${a} ${op1} ${b}${c ? ` ${op2} ${c}` : ''} = ?`, answer: String(Math.round(ans)), options: generateOptions(ans), category: 'mixed' });
+      results.push({ id: `T${i}-${Date.now()}`, question: `(${a} ${op1} ${b}) ${op2} ${c} = ?`, answer: String(Math.round(ans)), options: generateOptions(ans), category: 'mixed' });
     } else {
       a = 2 + Math.floor(Math.random() * (level >= 2 ? 98 : 49));
       b = (op1 === '×' || op1 === '÷') ? 2 + Math.floor(Math.random() * 9) : 1 + Math.floor(Math.random() * a);
@@ -27,6 +27,12 @@ function generateQuestions(count, level = 1) {
       ans = applyOp(a, op1, b);
       if (!Number.isFinite(ans) || ans < 0 || ans > 9999) { i--; continue; }
       results.push({ id: `T${i}-${Date.now()}`, question: `${a} ${op1} ${b} = ?`, answer: String(Math.round(ans)), options: generateOptions(ans), category: 'mixed' });
+    }
+  }
+  // 安全兜底：确保每题答案都在选项中
+  for (const q of results) {
+    if (!q.options.includes(q.answer)) {
+      q.options[0] = q.answer;
     }
   }
   return results;
