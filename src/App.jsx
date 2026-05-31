@@ -87,10 +87,8 @@ function AppContent() {
 
     loadGameDataFromServer().then(cloudData => {
       if (cloudData && Object.keys(cloudData).length > 1) {
-        // 有云数据 → 直接用云数据（不清本地）
         dispatch({ type: 'INIT', payload: cloudData });
       } else {
-        // 无云数据 → 走本地 localStorage
         const saved = localStorage.getItem('lele-island-data');
         if (saved) {
           try {
@@ -109,6 +107,12 @@ function AppContent() {
           dispatch({ type: 'INIT', payload: null });
         }
       }
+
+      // 硬编码测试账号：testadmin 自动开启免限制模式
+      if (userData?.username === 'testadmin') {
+        dispatch({ type: 'SET_TEST_ACCOUNT', payload: true });
+      }
+
       setTimeout(() => {
         setUser(userData);
         setInitializing(false);
@@ -388,19 +392,14 @@ function AppContent() {
               )}
             </div>
 
-            <div className="settings-section" style={{ borderTop: '2px dashed #f0e8f0', paddingTop: 10 }}>
-              <label className="settings-label">🧪 测试模式</label>
-              <div style={{ fontSize: 13, color: 'var(--text-light)', marginBottom: 8, lineHeight: 1.5 }}>
-                开启后跳过所有限制（学习时长、激活次数、解锁条件等），自由查看所有功能
+            {state.isTestAccount && (
+              <div className="settings-section">
+                <label className="settings-label">🧪 测试模式</label>
+                <div style={{ padding: '10px 12px', background: '#FFF8E1', borderRadius: 'var(--radius-sm)', fontSize: 13, color: '#F57F17', lineHeight: 1.5, marginTop: 4 }}>
+                  ✅ 测试账号 <b>testadmin</b> 已登录，跳过所有学习/激活限制
+                </div>
               </div>
-              <button
-                className={`btn btn-small ${state.isTestAccount ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => dispatch({ type: 'SET_TEST_ACCOUNT', payload: !state.isTestAccount })}
-                style={{ width: '100%' }}
-              >
-                {state.isTestAccount ? '✅ 测试模式已开启' : '🔘 开启测试模式'}
-              </button>
-            </div>
+            )}
 
             <button className="btn btn-secondary" onClick={handleLogout} style={{ width: '100%', marginTop: 12 }}>
               退出登录
