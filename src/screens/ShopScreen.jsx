@@ -31,6 +31,32 @@ export default function ShopScreen({ onBack }) {
     );
   }
 
+  // 每日激活次数限制（最多3次）
+  const MAX_DAILY_ACTIVATIONS = 3;
+  const petActivationsToday = state.petActivationsToday || 0;
+
+  if (petActivationsToday >= MAX_DAILY_ACTIVATIONS) {
+    return (
+      <div className="screen">
+        <div className="screen-header">
+          <button className="btn-back" onClick={onBack}>← 返回</button>
+          <h2>🛒 商店</h2><div />
+        </div>
+        <div className="pet-locked-screen">
+          <div className="pet-locked-icon">⏰</div>
+          <div className="pet-locked-title">今日次数已用完</div>
+          <div className="pet-locked-desc">
+            每天最多可以进入商店 <b>{MAX_DAILY_ACTIVATIONS}</b> 次，明天再来吧！
+          </div>
+          <div className="pet-locked-studied">
+            今日已进入 <b>{petActivationsToday}/{MAX_DAILY_ACTIVATIONS}</b> 次
+          </div>
+          <button className="btn btn-primary" onClick={onBack}>📚 去学习</button>
+        </div>
+      </div>
+    );
+  }
+
   const currentItems = shopItems.filter(i => i.type === tab);
 
   function handleBuy(item) {

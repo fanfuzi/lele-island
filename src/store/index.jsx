@@ -91,6 +91,8 @@ const initialState = {
   playMinutesAvailable: 0,
   // 上次记录学习时间的时间戳
   lastStudyTick: 0,
+  // 每日宠物屋/商店激活次数（上限3次）
+  petActivationsToday: 0,
 };
 
 function loadState() {
@@ -133,6 +135,7 @@ function loadState() {
         merged.dailyStudyMinutes = 0;
         merged.dailyPetPlayMinutes = 0;
         merged.playMinutesAvailable = 0;
+        merged.petActivationsToday = 0;
       }
 
       return merged;
@@ -237,6 +240,10 @@ function gameReducer(state, action) {
         };
       }
       return newState;
+    }
+
+    case 'REMOVE_INVENTORY_ITEM': {
+      return { ...state, inventory: state.inventory.filter(id => id !== action.payload) };
     }
 
     case 'WEAR_ACCESSORY': {
@@ -560,6 +567,10 @@ function gameReducer(state, action) {
         ),
         lastActive: Date.now(),
       };
+    }
+
+    case 'INCREMENT_PET_ACTIVATIONS': {
+      return { ...state, petActivationsToday: (state.petActivationsToday || 0) + 1 };
     }
 
     case 'ADD_STUDY_TIME': {

@@ -11,18 +11,18 @@ function renderAccessory(accId) {
     case 11:
       return (
         <g key={accId}>
-          <polygon points="22,28 10,20 22,34" fill="#FF4444" />
-          <polygon points="22,28 10,38 22,34" fill="#FF4444" />
-          <circle cx="22" cy="31" r="3" fill="#CC2222" />
+          <polygon points="55,24 40,14 55,30" fill="#FF4444" />
+          <polygon points="55,24 40,36 55,30" fill="#FF4444" />
+          <circle cx="55" cy="27" r="3" fill="#CC2222" />
         </g>
       );
     case 12:
       return (
         <g key={accId}>
-          <ellipse cx="60" cy="22" rx="22" ry="10" fill="#FF88AA" />
-          <rect x="40" y="20" width="40" height="5" rx="2.5" fill="#FF5599" />
-          <circle cx="50" cy="18" r="3" fill="#FFDD44" />
-          <circle cx="65" cy="16" r="2.5" fill="#FFDD44" />
+          <ellipse cx="60" cy="18" rx="22" ry="10" fill="#FF88AA" />
+          <rect x="40" y="16" width="40" height="5" rx="2.5" fill="#FF5599" />
+          <circle cx="50" cy="14" r="3" fill="#FFDD44" />
+          <circle cx="65" cy="12" r="2.5" fill="#FFDD44" />
         </g>
       );
     case 15:

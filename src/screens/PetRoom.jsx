@@ -52,9 +52,43 @@ export default function PetRoom({ onBack }) {
       </div>
     );
   }
+
+  // 每日激活次数限制（最多3次）
+  const MAX_DAILY_ACTIVATIONS = 3;
+  const petActivationsToday = state.petActivationsToday || 0;
+
+  // 进入时自动计数
+  useEffect(() => {
+    if (petActivationsToday < MAX_DAILY_ACTIVATIONS) {
+      dispatch({ type: 'INCREMENT_PET_ACTIVATIONS' });
+    }
+  }, []);
+
+  if (petActivationsToday >= MAX_DAILY_ACTIVATIONS) {
+    return (
+      <div className="screen">
+        <div className="screen-header">
+          <button className="btn-back" onClick={onBack}>← 返回</button>
+          <h2>🏠 宠物屋</h2><div />
+        </div>
+        <div className="pet-locked-screen">
+          <div className="pet-locked-icon">⏰</div>
+          <div className="pet-locked-title">今日次数已用完</div>
+          <div className="pet-locked-desc">
+            每天最多可以进入宠物屋 <b>{MAX_DAILY_ACTIVATIONS}</b> 次，明天再来吧！
+          </div>
+          <div className="pet-locked-studied">
+            今日已进入 <b>{petActivationsToday}/{MAX_DAILY_ACTIVATIONS}</b> 次
+          </div>
+          <button className="btn btn-primary" onClick={onBack}>📚 去学习</button>
+        </div>
+      </div>
+    );
+  }
   const [showCustomize, setShowCustomize] = useState(false);
   const [showNameEdit, setShowNameEdit] = useState(false);
   const [showFurniture, setShowFurniture] = useState(false);
+  const [showFood, setShowFood] = useState(false);
   const [nameInput, setNameInput] = useState(pet.name);
   const [petAction, setPetAction] = useState(null);
   const [dragPos, setDragPos] = useState({});
@@ -145,6 +179,20 @@ export default function PetRoom({ onBack }) {
     window.addEventListener('touchend', onEnd);
   }
 
+  // 从背包使用食物喂宠物
+  function useFoodItem(item) {
+    if (!item) return;
+    // 食物越贵效果越好
+    const hungerGain = Math.min(30, Math.round(item.price * 1.5));
+    dispatch({ type: 'FEED_PET', payload: hungerGain });
+    // 从背包移除已使用的食物
+    dispatch({ type: 'REMOVE_INVENTORY_ITEM', payload: item.id });
+    setPetAction('eating');
+    setPetSpeech('好好食！😋');
+    logActivity({ type: 'pet', subject: null, gameType: 'feed' });
+    setTimeout(() => setPetAction(null), 2000);
+  }
+
   function handleFeed() {
     if (state.coins < 2) return;
     dispatch({ type: 'FEED_PET', payload: 20 });
@@ -154,6 +202,9 @@ export default function PetRoom({ onBack }) {
     logActivity({ type: 'pet', subject: null, gameType: 'feed' });
     setTimeout(() => setPetAction(null), 2000);
   }
+
+  // 背包中的食物
+  const ownedFood = shopItems.filter(i => i.type === 'food' && inventory.includes(i.id));
 
   // 多种玩耍方式
   const playActivities = [
@@ -345,7 +396,31 @@ export default function PetRoom({ onBack }) {
           <span className="action-icon">🛋️</span>
           <span className="action-label">家具</span>
         </button>
+        {ownedFood.length > 0 && (
+          <button className={`action-btn ${showFood ? 'active' : ''}`} onClick={() => setShowFood(!showFood)}>
+            <span className="action-icon">🎒</span>
+            <span className="action-label">食物包</span>
+            <span className="action-cost">{ownedFood.length}</span>
+          </button>
+        )}
       </div>
+
+      {/* 食物背包面板 */}
+      {showFood && ownedFood.length > 0 && (
+        <div className="pet-food-panel">
+          <h3 className="pet-food-title">🎒 背包中的食物（点击使用）</h3>
+          <div className="pet-food-grid">
+            {ownedFood.map(item => (
+              <button key={item.id} className="pet-food-item" onClick={() => useFoodItem(item)}>
+                <span className="pet-food-icon">{item.icon}</span>
+                <span className="pet-food-name">{item.name}</span>
+                <span className="pet-food-effect">+{Math.min(30, Math.round(item.price * 1.5))}</span>
+              </button>
+            ))}
+          </div>
+          <p className="pet-food-hint">食物价格越高，饱食度增加越多。也可直接花2金币喂食</p>
+        </div>
+      )}
 
       {/* 未学习提示条 */}
       {!hasStudied && (
