@@ -93,6 +93,8 @@ const initialState = {
   lastStudyTick: 0,
   // 每日宠物屋/商店激活次数（上限3次）
   petActivationsToday: 0,
+  // 测试模式（无任何限制）
+  isTestAccount: false,
 };
 
 function loadState() {
@@ -169,6 +171,7 @@ function gameReducer(state, action) {
         wrongRecords: { ...initialState.wrongRecords, ...p.wrongRecords },
         mastery: { ...initialState.mastery, ...p.mastery },
         uploadArchives: p.uploadArchives || [],
+        isTestAccount: p.isTestAccount || false,
       };
     }
 
@@ -411,6 +414,10 @@ function gameReducer(state, action) {
         };
       }
       return state;
+    }
+
+    case 'SET_TEST_ACCOUNT': {
+      return { ...state, isTestAccount: action.payload || false };
     }
 
     case 'SET_GRADE': {

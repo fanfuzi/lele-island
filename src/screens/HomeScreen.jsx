@@ -23,7 +23,7 @@ export default function HomeScreen({ onNavigate }) {
   const studyMin = state.dailyStudyMinutes || 0;
   const playAvailable = state.playMinutesAvailable || 0;
   const sessionLen = state.studySessionMinutes || 25;
-  const canPetPlay = playAvailable > 0;
+  const canPetPlay = state.isTestAccount || playAvailable > 0;
   const studySinceLastUnlock = studyMin % sessionLen;
   const studyProgress = (studySinceLastUnlock / sessionLen) * 100;
   const minutesToNextUnlock = sessionLen - studySinceLastUnlock;

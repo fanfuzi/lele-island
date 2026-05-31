@@ -388,6 +388,20 @@ function AppContent() {
               )}
             </div>
 
+            <div className="settings-section" style={{ borderTop: '2px dashed #f0e8f0', paddingTop: 10 }}>
+              <label className="settings-label">🧪 测试模式</label>
+              <div style={{ fontSize: 13, color: 'var(--text-light)', marginBottom: 8, lineHeight: 1.5 }}>
+                开启后跳过所有限制（学习时长、激活次数、解锁条件等），自由查看所有功能
+              </div>
+              <button
+                className={`btn btn-small ${state.isTestAccount ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => dispatch({ type: 'SET_TEST_ACCOUNT', payload: !state.isTestAccount })}
+                style={{ width: '100%' }}
+              >
+                {state.isTestAccount ? '✅ 测试模式已开启' : '🔘 开启测试模式'}
+              </button>
+            </div>
+
             <button className="btn btn-secondary" onClick={handleLogout} style={{ width: '100%', marginTop: 12 }}>
               退出登录
             </button>

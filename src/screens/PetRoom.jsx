@@ -37,7 +37,7 @@ export default function PetRoom({ onBack }) {
   const playMinutesAvailable = state.playMinutesAvailable || 0;
 
   // 未解锁时显示锁定页，直接拦截
-  if (playMinutesAvailable <= 0) {
+  if (!state.isTestAccount && playMinutesAvailable <= 0) {
     return (
       <div className="screen">
         <div className="screen-header">
@@ -70,7 +70,7 @@ export default function PetRoom({ onBack }) {
     }
   }, []);
 
-  if (petActivationsToday >= MAX_DAILY_ACTIVATIONS) {
+  if (!state.isTestAccount && petActivationsToday >= MAX_DAILY_ACTIVATIONS) {
     return (
       <div className="screen">
         <div className="screen-header">
@@ -137,7 +137,7 @@ export default function PetRoom({ onBack }) {
   const playLen = state.playSessionMinutes || 10;
   const canPlay = playMinutesAvailable > 0;
   // 今天是否学过（学1分钟就算，解锁互动和商店）
-  const hasStudied = studyMinutes > 0;
+  const hasStudied = state.isTestAccount || studyMinutes > 0;
   // 距离下一轮解锁还需学习多少分钟
   const studySinceLastUnlock = studyMinutes % sessionLen;
   const minutesToNextUnlock = sessionLen - studySinceLastUnlock;

@@ -9,7 +9,7 @@ export default function ShopScreen({ onBack }) {
   const playMinutesAvailable = state.playMinutesAvailable || 0;
 
   // 未解锁时显示锁定页
-  if (playMinutesAvailable <= 0) {
+  if (!state.isTestAccount && playMinutesAvailable <= 0) {
     return (
       <div className="screen">
         <div className="screen-header">
@@ -35,7 +35,7 @@ export default function ShopScreen({ onBack }) {
   const MAX_DAILY_ACTIVATIONS = 3;
   const petActivationsToday = state.petActivationsToday || 0;
 
-  if (petActivationsToday >= MAX_DAILY_ACTIVATIONS) {
+  if (!state.isTestAccount && petActivationsToday >= MAX_DAILY_ACTIVATIONS) {
     return (
       <div className="screen">
         <div className="screen-header">
