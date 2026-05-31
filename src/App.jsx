@@ -109,8 +109,14 @@ function AppContent() {
       }
 
       // 硬编码测试账号：testadmin 自动开启免限制模式
+      // 硬编码测试账号：testadmin 自动开启免限制模式
       if (userData?.username === 'testadmin') {
         dispatch({ type: 'SET_TEST_ACCOUNT', payload: true });
+      }
+
+      // 注册时输入的"宠物名字"同步到宠物
+      if (userData?.displayName && !['团子','乐乐'].includes(userData.displayName)) {
+        dispatch({ type: 'SET_PET_NAME', payload: userData.displayName });
       }
 
       setTimeout(() => {
@@ -155,6 +161,14 @@ function AppContent() {
     { type: 'dog', emoji: '🐶', name: '小狗', color: '#FFDAA3' },
     { type: 'rabbit', emoji: '🐰', name: '小兔', color: '#FFB5E6' },
     { type: 'hamster', emoji: '🐹', name: '仓鼠', color: '#DDA0DD' },
+    { type: 'fox', emoji: '🦊', name: '小狐', color: '#FF8C42' },
+    { type: 'panda', emoji: '🐼', name: '熊猫', color: '#F5F5F5' },
+    { type: 'bear', emoji: '🐻', name: '小熊', color: '#A1887F' },
+    { type: 'frog', emoji: '🐸', name: '青蛙', color: '#81C784' },
+    { type: 'owl', emoji: '🦉', name: '猫头鹰', color: '#A1887F' },
+    { type: 'penguin', emoji: '🐧', name: '企鹅', color: '#455A64' },
+    { type: 'unicorn', emoji: '🦄', name: '独角兽', color: '#CE93D8' },
+    { type: 'turtle', emoji: '🐢', name: '乌龟', color: '#66BB6A' },
   ];
 
   // 加载中或初始化中

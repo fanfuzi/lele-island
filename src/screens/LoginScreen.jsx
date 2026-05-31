@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { login, register } from '../api/auth';
 import { getAllGrades, getPetEmoji } from '../store';
 
-const PET_TYPES = ['cat', 'dog', 'rabbit', 'hamster', 'fox', 'panda'];
+const PET_TYPES = ['cat', 'dog', 'rabbit', 'hamster', 'fox', 'panda', 'bear', 'frog', 'owl', 'penguin', 'unicorn', 'turtle'];
 const GREETINGS = ['🌟 欢迎来到乐乐小岛！', '🌈 和团子一起学习吧！', '🎠 在这里快乐成长！', '🦋 每一天都是新的冒险！'];
 
 export default function LoginScreen({ onLogin }) {
