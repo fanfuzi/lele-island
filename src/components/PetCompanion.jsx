@@ -416,6 +416,29 @@ function PetSprite({ type, color, mood = 'normal', celebrating = false, accessor
     <svg width={size} height={size * 1.5} viewBox="0 0 120 180"
       className={`pet-sprite ${celebrating ? 'pet-celebrating' : ''} ${spriteClass}`}
     >
+      <defs>
+        {/* 身体渐变 */}
+        <radialGradient id="bodyG" cx="45%" cy="30%" r="70%">
+          <stop offset="0%" stopColor={lightColor} />
+          <stop offset="60%" stopColor={color} />
+          <stop offset="100%" stopColor={color} stopOpacity="0.8" />
+        </radialGradient>
+        <radialGradient id="headG" cx="45%" cy="25%" r="75%">
+          <stop offset="0%" stopColor={lightColor} stopOpacity="0.9" />
+          <stop offset="70%" stopColor={color} />
+          <stop offset="100%" stopColor={color} stopOpacity="0.85" />
+        </radialGradient>
+        {/* 眼睛虹膜渐变 */}
+        <radialGradient id="iris" cx="40%" cy="35%" r="60%">
+          <stop offset="0%" stopColor="#8D6E63" />
+          <stop offset="100%" stopColor="#4E342E" />
+        </radialGradient>
+        <radialGradient id="irisLight" cx="40%" cy="35%" r="60%">
+          <stop offset="0%" stopColor="#FFCC80" />
+          <stop offset="100%" stopColor="#E65100" />
+        </radialGradient>
+      </defs>
+
       {/* 庆祝粒子 */}
       {celebrating && (
         <g className="pet-sparkles">
@@ -425,46 +448,40 @@ function PetSprite({ type, color, mood = 'normal', celebrating = false, accessor
         </g>
       )}
 
-      {/* 身后配件（披风） */}
+      {/* 身后配件 */}
       {behindAccs.map(renderAccessory)}
 
-      {/* === 身体（圆润Q版） === */}
-      <ellipse cx="60" cy="120" rx="34" ry="32" fill={color} opacity="0.8" />
-      <ellipse cx="60" cy="128" rx="28" ry="22" fill={bellyColor} opacity="0.4" />
+      {/* 地面阴影 */}
+      <ellipse cx="60" cy="172" rx="36" ry="5" fill="rgba(0,0,0,0.08)" />
+
+      {/* 身体 */}
+      <path d="M34,80 C18,105 20,135 28,152 C32,164 42,170 52,170 L68,170 C78,170 88,164 92,152 C100,135 102,105 86,80 Z" fill="url(#bodyG)" />
+      <ellipse cx="60" cy="130" rx="18" ry="20" fill="rgba(255,255,255,0.18)" />
 
       {/* 后腿 */}
-      <ellipse cx="30" cy="148" rx="14" ry="12" fill={color} opacity="0.7" />
-      <ellipse cx="90" cy="148" rx="14" ry="12" fill={color} opacity="0.7" />
+      <ellipse cx="28" cy="148" rx="14" ry="12" fill={color} opacity="0.75" />
+      <ellipse cx="92" cy="148" rx="14" ry="12" fill={color} opacity="0.75" />
 
       {/* 前腿 */}
-      <path d="M36,112 Q30,136 34,156 Q36,162 42,164 L46,164 Q50,162 48,156 L48,112 Z" fill={color} opacity="0.85" />
-      <path d="M84,112 Q90,136 86,156 Q84,162 78,164 L74,164 Q70,162 72,156 L72,112 Z" fill={color} opacity="0.85" />
+      <path d="M38,106 Q30,134 35,156 Q37,164 43,166 L47,166 Q51,164 49,156 L50,106 Z" fill={color} opacity="0.8" />
+      <path d="M82,106 Q90,134 85,156 Q83,164 77,166 L73,166 Q69,164 71,156 L70,106 Z" fill={color} opacity="0.8" />
 
-      {/* 熊貓/企鵝專屬腿色 */}
-      {type === 'panda' && (
-        <>
-          <path d="M36,112 Q30,136 34,156 Q36,162 42,164 L46,164 Q50,162 48,156 L48,112 Z" fill="#333" opacity="0.9" />
-          <path d="M84,112 Q90,136 86,156 Q84,162 78,164 L74,164 Q70,162 72,156 L72,112 Z" fill="#333" opacity="0.9" />
-          <path d="M32,108 Q60,120 88,108" fill="none" stroke="#333" strokeWidth="18" strokeLinecap="round" opacity="0.85" />
-        </>
-      )}
-      {type === 'penguin' && (
-        <path d="M36,112 Q30,136 34,156 Q36,162 42,164 L46,164 Q50,162 48,156 L48,112 Z" fill="#333" opacity="0.7" />
-      )}
+      {/* 熊猫/企鹅专用 */}
+      {type === 'panda' && (<><path d="M38,106 Q30,134 35,156 Q37,164 43,166 L47,166 Q51,164 49,156 L50,106 Z" fill="#333" opacity="0.85" /><path d="M82,106 Q90,134 85,156 Q83,164 77,166 L73,166 Q69,164 71,156 L70,106 Z" fill="#333" opacity="0.85" /><path d="M32,108 Q60,120 88,108" fill="none" stroke="#333" strokeWidth="18" strokeLinecap="round" opacity="0.85" /></>)}
+      {type === 'penguin' && <path d="M38,106 Q30,134 35,156 Q37,164 43,166 L47,166 Q51,164 49,156 L50,106 Z" fill="#333" opacity="0.7" />}
 
       {/* 脚掌 */}
-      {type === 'panda' || type === 'penguin' ? (
-        <><ellipse cx="42" cy="166" rx="7" ry="4" fill="#333" opacity="0.9" /><ellipse cx="78" cy="166" rx="7" ry="4" fill="#333" opacity="0.9" /></>
-      ) : (
-        <><ellipse cx="42" cy="166" rx="7" ry="4" fill={color} opacity="0.9" /><ellipse cx="78" cy="166" rx="7" ry="4" fill={color} opacity="0.9" /></>
-      )}
+      {type === 'panda' || type === 'penguin'
+        ? <><ellipse cx="42" cy="167" rx="7" ry="4" fill="#333" opacity="0.9" /><ellipse cx="78" cy="167" rx="7" ry="4" fill="#333" opacity="0.9" /></>
+        : <><ellipse cx="42" cy="167" rx="7" ry="4" fill={color} opacity="0.9" /><ellipse cx="78" cy="167" rx="7" ry="4" fill={color} opacity="0.9" /></>
+      }
 
       {/* 脚部配件 */}
       {footAccs.map(renderAccessory)}
 
       {/* 尾巴 */}
-      {type === 'cat' && <path d="M90,130 Q110,118 108,100 Q106,90 112,84" fill="none" stroke={color} strokeWidth="6" strokeLinecap="round" opacity="0.7" />}
-      {type === 'dog' && <path d="M92,138 Q110,128 108,110 Q106,102 112,98" fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" opacity="0.7" />}
+      {type === 'cat' && <path d="M90,130 Q112,118 110,100 Q108,90 112,84" fill="none" stroke={color} strokeWidth="6" strokeLinecap="round" opacity="0.7" />}
+      {type === 'dog' && <path d="M92,136 Q110,126 108,108 Q106,100 112,96" fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" opacity="0.7" />}
       {type === 'fox' && <path d="M88,130 Q114,120 112,94 Q110,82 108,76" fill="none" stroke={color} strokeWidth="7" strokeLinecap="round" opacity="0.7" />}
       {type === 'rabbit' && <ellipse cx="58" cy="174" rx="8" ry="5" fill={color} opacity="0.6" />}
       {type === 'bear' && <path d="M86,140 Q112,132 110,110" fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" opacity="0.6" />}
@@ -477,77 +494,55 @@ function PetSprite({ type, color, mood = 'normal', celebrating = false, accessor
       {/* 耳朵 */}
       {ears}
 
-      {/* 头（更大更圆） */}
-      <ellipse cx="60" cy="52" rx="40" ry="36" fill={color} stroke="#00000008" strokeWidth="1" />
-      {/* 头部内测浅色 */}
-      <ellipse cx="60" cy="48" rx="34" ry="30" fill={lightColor} opacity="0.15" />
+      {/* 头 */}
+      <ellipse cx="60" cy="48" rx="38" ry="34" fill="url(#headG)" />
 
-      {/* 乌龟的壳 */}
-      {type === 'turtle' && (
-        <ellipse cx="60" cy="98" rx="30" ry="24" fill="#81C784" stroke="#66BB6A" strokeWidth="2" />
-      )}
+      {/* 乌龟壳 */}
+      {type === 'turtle' && <ellipse cx="60" cy="98" rx="30" ry="24" fill="#81C784" stroke="#66BB6A" strokeWidth="2" />}
 
       {/* 头饰配件 */}
       {headAccs.map(renderAccessory)}
 
-      {/* 腮红（更大更明显） */}
+      {/* 腮红 */}
       {type !== 'panda' && (
-        <>
-          <ellipse cx="28" cy="60" rx="8" ry="5" fill="#FF8C9E" opacity={blushOpacity} />
-          <ellipse cx="92" cy="60" rx="8" ry="5" fill="#FF8C9E" opacity={blushOpacity} />
-        </>
+        <><ellipse cx="24" cy="60" rx="10" ry="6" fill="#FF8C9E" opacity={blushOpacity} /><ellipse cx="96" cy="60" rx="10" ry="6" fill="#FF8C9E" opacity={blushOpacity} /></>
       )}
+      {type === 'panda' && (<><ellipse cx="42" cy="46" rx="14" ry="11" fill="#333" opacity="0.85" /><ellipse cx="78" cy="46" rx="14" ry="11" fill="#333" opacity="0.85" /><ellipse cx="24" cy="60" rx="10" ry="6" fill="#FF8C9E" opacity="0.3" /><ellipse cx="96" cy="60" rx="10" ry="6" fill="#FF8C9E" opacity="0.3" /></>)}
 
-      {/* 熊猫专属黑色眼圈 */}
-      {type === 'panda' && (
-        <>
-          <ellipse cx="42" cy="48" rx="14" ry="11" fill="#333" opacity="0.85" />
-          <ellipse cx="78" cy="48" rx="14" ry="11" fill="#333" opacity="0.85" />
-        </>
-      )}
-      {/* 熊猫脸颊也有腮红 */}
-      {type === 'panda' && (
-        <>
-          <ellipse cx="28" cy="60" rx="8" ry="5" fill="#FF8C9E" opacity="0.3" />
-          <ellipse cx="92" cy="60" rx="8" ry="5" fill="#FF8C9E" opacity="0.3" />
-        </>
-      )}
-
-      {/* 眼睛 — 大而闪亮 */}
-      <ellipse cx="40" cy="48" rx="10" ry="10" fill="white" />
-      <ellipse cx="80" cy="48" rx="10" ry="10" fill="white" />
+      {/* 眼睛 -- 三层结构：眼白 + 虹膜 + 瞳孔 */}
+      <ellipse cx="40" cy="46" rx="10" ry="11" fill="white" />
+      <ellipse cx="80" cy="46" rx="10" ry="11" fill="white" />
+      
+      {/* 虹膜（带颜色） */}
+      <ellipse cx={pupilLX} cy={pupilLY} rx="7" ry="8" fill="url(#iris)" />
+      <ellipse cx={pupilRX} cy={pupilRY} rx="7" ry="8" fill="url(#iris)" />
+      
+      {/* 瞳孔 */}
+      <ellipse cx={pupilLX} cy={pupilLY} rx="4" ry="5" fill="#1a1a1a" />
+      <ellipse cx={pupilRX} cy={pupilRY} rx="4" ry="5" fill="#1a1a1a" />
+      
+      {/* 大高光点（灵魂所在✨） */}
+      <circle cx={pupilLX - 2} cy={pupilLY - 3} r="3" fill="white" opacity="0.92" />
+      <circle cx={pupilRX - 2} cy={pupilRY - 3} r="3" fill="white" opacity="0.92" />
+      {/* 小高光点 */}
+      <circle cx={pupilLX + 1} cy={pupilLY + 2} r="1.3" fill="white" opacity="0.65" />
+      <circle cx={pupilRX + 1} cy={pupilRY + 2} r="1.3" fill="white" opacity="0.65" />
 
       {/* 眼睑 */}
-      <path d={eye} fill="none" stroke="#4A3A3A" strokeWidth="2.5" strokeLinecap="round" />
-      <path d={rightEye} fill="none" stroke="#4A3A3A" strokeWidth="2.5" strokeLinecap="round" />
-
-      {/* 瞳孔（带视线跟踪） */}
-      {(mood === 'normal' || mood === 'happy' || mood === 'hungry') && !blink && (
-        <>
-          <circle cx={pupilLX} cy={pupilLY} r="5" fill="#4A3A3A" />
-          <circle cx={pupilLX + 2} cy={pupilLY - 2} r="2" fill="white" opacity="0.9" />
-          <circle cx={pupilRX} cy={pupilRY} r="5" fill="#4A3A3A" />
-          <circle cx={pupilRX + 2} cy={pupilRY - 2} r="2" fill="white" opacity="0.9" />
-        </>
-      )}
-
-      {/* 高光小点（闭眼时也保留小亮点） */}
-      {(blink || mood === 'sad') && (
-        <>
-          <circle cx={pupilLX + 1.5} cy={pupilLY - 1.5} r="1.5" fill="white" opacity="0.6" />
-          <circle cx={pupilRX + 1.5} cy={pupilRY - 1.5} r="1.5" fill="white" opacity="0.6" />
-        </>
-      )}
+      <path d={eye} fill="none" stroke="#4A3A3A" strokeWidth="2" strokeLinecap="round" />
+      <path d={rightEye} fill="none" stroke="#4A3A3A" strokeWidth="2" strokeLinecap="round" />
 
       {/* 面部配件 */}
       {faceAccs.map(renderAccessory)}
 
       {/* 鼻子 */}
       {nose}
+
       {/* 胡须 */}
       {whiskers}
+
       {/* 嘴巴 */}
-      <path d={mouth} fill="none" stroke="#4A3A3A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={mouth} fill="none" stroke="#4A3A3A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
 
       {/* 舌头 */}
       {(type === 'dog' || type === 'bear' || (mood === 'excited' && type !== 'panda')) && mood !== 'sad' && (
@@ -556,16 +551,7 @@ function PetSprite({ type, color, mood = 'normal', celebrating = false, accessor
 
       {/* 眼泪 */}
       {mood === 'sad' && (
-        <>
-          <circle cx="32" cy="54" r="3" fill="#87CEEB" opacity="0.7">
-            <animate attributeName="cy" values="54;64;54" dur="2s" repeatCount="indefinite" />
-            <animate attributeName="opacity" values="0.7;0;0.7" dur="2s" repeatCount="indefinite" />
-          </circle>
-          <circle cx="88" cy="54" r="3" fill="#87CEEB" opacity="0.7">
-            <animate attributeName="cy" values="54;64;54" dur="2s" repeatCount="indefinite" begin="0.3s" />
-            <animate attributeName="opacity" values="0.7;0;0.7" dur="2s" repeatCount="indefinite" begin="0.3s" />
-          </circle>
-        </>
+        <><circle cx="32" cy="54" r="2.5" fill="#87CEEB" opacity="0.7"><animate attributeName="cy" values="54;64;54" dur="2s" repeatCount="indefinite" /><animate attributeName="opacity" values="0.7;0;0.7" dur="2s" repeatCount="indefinite" /></circle><circle cx="88" cy="54" r="2.5" fill="#87CEEB" opacity="0.7"><animate attributeName="cy" values="54;64;54" dur="2s" repeatCount="indefinite" begin="0.3s" /><animate attributeName="opacity" values="0.7;0;0.7" dur="2s" repeatCount="indefinite" begin="0.3s" /></circle></>
       )}
 
       {/* 颈部配件 */}
