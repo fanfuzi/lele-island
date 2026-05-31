@@ -913,7 +913,7 @@ app.post('/api/tutor/generate-exam', async (req, res) => {
       "category": "知识点",
       "difficulty": 1-3,
       "hint": "解题提示",
-      "diagram": "如果题目涉及图形（几何图形、图表、数轴等），在此用SVG画出。用viewBox='0 0 200 150'，只画图形不写答案。不需要图形时设为null"
+      "diagram": "如果题目涉及图形，在这里用简易的文字描述图形（如"一个三角形底10cm高6cm"）。不需要图形时设为null"
     }
   ],
   "summary": {
