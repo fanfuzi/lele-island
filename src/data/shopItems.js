@@ -29,6 +29,16 @@ const shopItems = [
   { id: 23, name: '小领结', icon: '🦋', type: 'clothing', price: 2, priceType: 'stars', description: '帅气的蝴蝶领结' },
   { id: 24, name: '手环', icon: '💫', type: 'clothing', price: 3, priceType: 'stars', description: '闪闪发光的手环' },
 
+  // ===== 新增服装 (8个) =====
+  { id: 42, name: '猫耳发箍', icon: '🐱', type: 'clothing', price: 3, priceType: 'stars', description: '戴上变小猫！' },
+  { id: 43, name: '小礼帽', icon: '🎩', type: 'clothing', price: 5, priceType: 'stars', description: '绅士小礼帽' },
+  { id: 44, name: '头戴耳机', icon: '🎧', type: 'clothing', price: 6, priceType: 'stars', description: '酷酷的耳机' },
+  { id: 45, name: '小墨镜', icon: '🕶️', type: 'clothing', price: 4, priceType: 'stars', description: '超酷墨镜' },
+  { id: 46, name: '铃铛项圈', icon: '🔔', type: 'clothing', price: 3, priceType: 'stars', description: '叮叮当当' },
+  { id: 47, name: '小翅膀', icon: '🕊️', type: 'clothing', price: 10, priceType: 'stars', description: '变身小天使！' },
+  { id: 48, name: '天使光环', icon: '✨', type: 'clothing', price: 7, priceType: 'stars', description: '闪闪发光的光环' },
+  { id: 49, name: '小围裙', icon: '🍳', type: 'clothing', price: 4, priceType: 'stars', description: '厨房小帮手' },
+
   // ===== 家具 (12个) =====
   { id: 25, name: '小花地毯', icon: '🌸', type: 'furniture', price: 3, priceType: 'stars', description: '软软的小花地毯' },
   { id: 26, name: '小床铺', icon: '🛏️', type: 'furniture', price: 10, priceType: 'stars', description: '温馨可爱的小床' },
@@ -42,6 +52,16 @@ const shopItems = [
   { id: 34, name: '音乐盒', icon: '🎵', type: 'furniture', price: 8, priceType: 'stars', description: '会唱歌的音乐盒' },
   { id: 35, name: '小摇铃', icon: '🔔', type: 'furniture', price: 2, priceType: 'stars', description: '叮叮当当好有趣' },
   { id: 36, name: '仙人掌', icon: '🌵', type: 'furniture', price: 3, priceType: 'stars', description: '不用浇水也能活' },
+
+  // ===== 新增家具 (8个) =====
+  { id: 50, name: '小帐篷', icon: '⛺', type: 'furniture', price: 10, priceType: 'stars', description: '在房间里露营！' },
+  { id: 51, name: '乐高积木', icon: '🧱', type: 'furniture', price: 6, priceType: 'stars', description: '搭积木真好玩' },
+  { id: 52, name: '大熊公仔', icon: '🧸', type: 'furniture', price: 8, priceType: 'stars', description: '软软的抱抱熊' },
+  { id: 53, name: '小钢琴', icon: '🎹', type: 'furniture', price: 12, priceType: 'stars', description: '弹弹小曲子' },
+  { id: 54, name: '画架', icon: '🎨', type: 'furniture', price: 5, priceType: 'stars', description: '画出你的世界' },
+  { id: 55, name: '小鱼缸', icon: '🐠', type: 'furniture', price: 7, priceType: 'stars', description: '小鱼游来游去' },
+  { id: 56, name: '小地毯', icon: '🔴', type: 'furniture', price: 4, priceType: 'stars', description: '软软的圆地毯' },
+  { id: 57, name: '毛绒枕头', icon: '🛏️', type: 'furniture', price: 5, priceType: 'stars', description: '靠着好舒服' },
 ];
 
 const shopCategories = [

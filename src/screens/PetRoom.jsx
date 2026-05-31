@@ -23,6 +23,12 @@ const PET_TYPES = [
   { type: 'hamster', emoji: '🐹', name: '仓鼠', color: '#DDA0DD' },
   { type: 'fox', emoji: '🦊', name: '小狐', color: '#FF8C42' },
   { type: 'panda', emoji: '🐼', name: '熊猫', color: '#F5F5F5' },
+  { type: 'bear', emoji: '🐻', name: '小熊', color: '#A1887F' },
+  { type: 'frog', emoji: '🐸', name: '青蛙', color: '#81C784' },
+  { type: 'owl', emoji: '🦉', name: '猫头鹰', color: '#A1887F' },
+  { type: 'penguin', emoji: '🐧', name: '企鹅', color: '#455A64' },
+  { type: 'unicorn', emoji: '🦄', name: '独角兽', color: '#CE93D8' },
+  { type: 'turtle', emoji: '🐢', name: '乌龟', color: '#66BB6A' },
 ];
 
 export default function PetRoom({ onBack }) {
