@@ -1,47 +1,125 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 
+function calc(x, y, op) {
+  switch (op) {
+    case '+': return x + y;
+    case '-': return x - y;
+    case '×': return x * y;
+    case '÷': return y !== 0 && x % y === 0 ? x / y : null;
+    default: return null;
+  }
+}
+
 function generateQuestions(count, level = 1) {
   const ops = level >= 3 ? ['+', '-', '×', '÷'] : level >= 2 ? ['+', '-', '×'] : ['+', '-'];
-  const results = [];
-  for (let i = 0; i < count; i++) {
+  const rand = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+  // 减法相关：max 确保不負
+  // 除法相關：保證整除
+  // 全用正向構造，不依賴 try-catch retry
+
+  function makeLL() {   // 低-低: (a ○ b) ○ c
     const op1 = ops[Math.floor(Math.random() * ops.length)];
-    let a, b, ans;
+    const op2 = ops[Math.floor(Math.random() * ops.length)];
+    const r = level >= 3 ? [10, 99] : [10, 50];
+    let a = rand(r[0], r[1]);
+    let b = rand(2, level >= 2 ? 9 : 8);
+    // 確保 (a ○ b) ≥ 0
+    if (op1 === '-') a = a + b;
+    const v1 = calc(a, b, op1);
+    if (v1 === null) return null;
+    let c = rand(2, level >= 2 ? 9 : 8);
+    if (op2 === '-' && v1 < c) c = rand(1, v1);
+    const ans = calc(v1, c, op2);
+    if (ans === null || ans < 0) return null;
+    return { display: `(${a} ${op1} ${b}) ${op2} ${c} = ?`, ans };
+  }
 
-    if (op1 === '÷') {
-      // 除法：确保整除
-      b = 2 + Math.floor(Math.random() * 9);
-      const q = 1 + Math.floor(Math.random() * (level >= 2 ? 20 : 10));
-      a = b * q;
-      ans = q;
-    } else if (op1 === '×') {
-      a = 2 + Math.floor(Math.random() * (level >= 2 ? 50 : 20));
-      b = 2 + Math.floor(Math.random() * 9);
-      ans = a * b;
+  function makeHH() {   // 高-高: (a ○ b) ○ c — 只用 ×，不用 ÷（太難且不穩定）
+    const op1 = '×';
+    const op2 = Math.random() > 0.5 ? '×' : '÷';
+    const a = rand(2, level >= 3 ? 20 : 12);
+    const b = rand(2, 9);
+    const v1 = calc(a, b, op1);
+    if (v1 === null) return null;
+    let c;
+    if (op2 === '÷') {
+      // 從 v1 的因數中選 c
+      const factors = [];
+      for (let i = 2; i <= Math.min(v1, 12); i++) if (v1 % i === 0) factors.push(i);
+      if (factors.length === 0) return null;
+      c = factors[Math.floor(Math.random() * factors.length)];
     } else {
-      a = 2 + Math.floor(Math.random() * (level >= 2 ? 99 : 49));
-      b = 1 + Math.floor(Math.random() * a);
-      ans = op1 === '+' ? a + b : a - b;
+      c = rand(2, 9);
     }
+    const ans = calc(v1, c, op2);
+    if (ans === null || ans < 0 || ans > 9999) return null;
+    return { display: `(${a} ${op1} ${b}) ${op2} ${c} = ?`, ans };
+  }
 
-    if (!Number.isFinite(ans) || ans < 0 || ans > 9999) { i--; continue; }
-    const correct = String(Math.round(ans));
+  function makeHL() {   // 高-低: a ○ b ○ c （先乘除後加减）
+    const highOps = level >= 3 && Math.random() > 0.5 ? ['×', '÷'] : ['×'];
+    const lowOps = ['+', '-'];
+    const op1 = highOps[Math.floor(Math.random() * highOps.length)];
+    const op2 = lowOps[Math.floor(Math.random() * lowOps.length)];
+    let a = rand(2, level >= 3 ? 50 : 20);
+    let b = rand(2, 9);
+    // 確保 a ÷ b 整除
+    if (op1 === '÷') a = a * b;
+    const v1 = calc(a, b, op1);
+    if (v1 === null) return null;
+    let c = rand(2, 9);
+    // 如果是減：確保 v1 ≥ c
+    if (op2 === '-' && v1 < c) c = rand(1, Math.max(1, v1));
+    const ans = calc(v1, c, op2);
+    if (ans === null || ans < 0 || ans > 9999) return null;
+    return { display: `${a} ${op1} ${b} ${op2} ${c} = ?`, ans };
+  }
+
+  function makeLH() {   // 低-高: a ○ b ○ c（先乘除後加减，op2 = ×÷）
+    const lowOps = ['+'];
+    const highOps = level >= 3 && Math.random() > 0.5 ? ['×', '÷'] : ['×'];
+    // op1 只用 +（減法搭配高優先級容易負數）
+    const op1 = lowOps[Math.floor(Math.random() * lowOps.length)];
+    const op2 = highOps[Math.floor(Math.random() * highOps.length)];
+    let b = rand(2, 9);
+    let c = rand(2, 9);
+    if (op2 === '÷') {
+      // 確保 b ÷ c 整除
+      b = b * c;
+      // 避免太大
+      if (b > 81) { b = rand(2, 9); c = rand(2, 9); if (c > b) [b, c] = [c, b]; b = b * c; }
+    }
+    const v2 = calc(b, c, op2);
+    if (v2 === null || v2 < 0) return null;
+    const a = rand(level >= 3 ? 10 : 5, 99);
+    const ans = calc(a, v2, op1);
+    if (ans === null || ans < 0 || ans > 9999) return null;
+    return { display: `${a} ${op1} ${b} ${op2} ${c} = ?`, ans };
+  }
+
+  const makers = level >= 3 ? [makeLL, makeHH, makeHL, makeLH] : level === 2 ? [makeLL, makeHH, makeHL] : [makeLL];
+
+  const results = [];
+  let attempts = 0;
+  while (results.length < count && attempts < count * 20) {
+    attempts++;
+    const maker = makers[Math.floor(Math.random() * makers.length)];
+    const result = maker();
+    if (!result) continue;
+    if (results.some(r => r.ans === result.ans && r.display === result.display)) continue;
+    const correct = String(result.ans);
     const distractors = new Set([correct]);
     while (distractors.size < 4) {
       const offset = 1 + Math.floor(Math.random() * 9);
-      const d = String(Math.max(0, Math.round(ans + (Math.random() > 0.5 ? 1 : -1) * offset)));
+      const d = String(Math.max(0, result.ans + (Math.random() > 0.5 ? 1 : -1) * offset));
       if (d !== correct && d.length <= 5) distractors.add(d);
     }
-    results.push({ id: `T${i}-${Date.now()}`, question: `${a} ${op1} ${b} = ?`, answer: correct, options: shuffleArray([...distractors]), category: 'mixed' });
+    results.push({ id: `T${results.length}-${Date.now()}`, question: result.display, answer: correct, options: shuffleArray([...distractors]), category: 'mixed' });
   }
-  // 安全兜底：确保每题答案都在选项中
   for (const q of results) {
     if (!q.options.includes(q.answer)) q.options[0] = q.answer;
   }
   return results;
-}
-
-function applyOp(a, op, b) {
-  switch (op) { case '+': return a + b; case '-': return a - b; case '×': return a * b; case '÷': return b !== 0 ? a / b : 0; default: return 0; }
 }
 
 function shuffleArray(arr) {
@@ -60,7 +138,6 @@ export default function TimedMathGame({ level: defaultLevel = 1, questionCount =
   const [feedback, setFeedback] = useState(null);
   const [totalTimeLeft, setTotalTimeLeft] = useState(0);
 
-  // refs
   const r = useRef({ score: 0, total: 0, idx: 0, answered: false, qStart: 0, perQ: 15, remaining: 0, qs: [] }).current;
   const onCb = useRef(onComplete);
   const onAb = useRef(onAnswer);
@@ -77,7 +154,7 @@ export default function TimedMathGame({ level: defaultLevel = 1, questionCount =
   const handleDifficulty = (lvl) => {
     setLevel(lvl);
     setTimeLimit(lvl >= 3 ? 120 : lvl >= 2 ? 90 : 60);
-    setPerQuestionTime(lvl >= 2 ? 20 : 15);
+    setPerQuestionTime(lvl >= 2 ? 25 : 20);
   };
 
   const startGame = () => {
@@ -141,10 +218,10 @@ export default function TimedMathGame({ level: defaultLevel = 1, questionCount =
   }, [phase, current]);
 
   if (phase === 'setup') {
-    return (<div className="timed-setup"><h3 className="game-title">⏱️ 计时运算</h3><div className="timed-setup-card">
+    return (<div className="timed-setup"><h3 className="game-title">⏱️ 计时混合运算</h3><div className="timed-setup-card">
       <div className="timed-setup-row"><span>⏱️ 总时长</span><div className="timed-setup-inputs">{ [30, 60, 90, 120].map(t => (<button key={t} className={`timed-option-btn ${timeLimit === t ? 'active' : ''}`} onClick={() => setTimeLimit(t)}>{t}秒</button>)) }</div></div>
       <div className="timed-setup-row"><span>📝 每题限时</span><div className="timed-setup-inputs">{ [5, 10, 15, 20, 30].map(t => (<button key={t} className={`timed-option-btn ${perQuestionTime === t ? 'active' : ''}`} onClick={() => setPerQuestionTime(t)}>{t}秒</button>)) }</div></div>
-      <div className="timed-setup-row"><span>📊 难度</span><div className="timed-setup-inputs">{ [{id:1,label:'🌱 基础',desc:'加减法'},{id:2,label:'🌿 进阶',desc:'加減乘'},{id:3,label:'🔥 挑战',desc:'加減乘除'}].map(l => (<button key={l.id} className={`timed-option-btn timed-option-wide ${level === l.id ? 'active' : ''}`} onClick={() => handleDifficulty(l.id)}>{l.label}<span className="timed-option-desc">{l.desc}</span></button>)) }</div></div>
+      <div className="timed-setup-row"><span>📊 难度</span><div className="timed-setup-inputs">{ [{id:1,label:'🌱 基础',desc:'加减混合'},{id:2,label:'🌿 进阶',desc:'加减乘混合'},{id:3,label:'🔥 挑战',desc:'加减乘除'}].map(l => (<button key={l.id} className={`timed-option-btn timed-option-wide ${level === l.id ? 'active' : ''}`} onClick={() => handleDifficulty(l.id)}>{l.label}<span className="timed-option-desc">{l.desc}</span></button>)) }</div></div>
       <button className="btn btn-primary timed-start-btn" onClick={startGame}>🚀 开始挑战！</button>
     </div></div>);
   }
@@ -152,7 +229,7 @@ export default function TimedMathGame({ level: defaultLevel = 1, questionCount =
   if (phase === 'result') {
     const finalScore = r.score; const finalTotal = r.total || 1; const rate = Math.round((finalScore / finalTotal) * 100);
     const stars = rate >= 90 ? '🌟🌟🌟' : rate >= 70 ? '🌟🌟' : '🌟';
-    const msg = rate >= 80 ? '太厉害了！🏆' : rate >= 50 ? '不错哦！💪' : '多练习几次！😊';
+    const msg = rate >= 80 ? '混合運算高手！🏆' : rate >= 50 ? '不錯哦！💪' : '多練習幾次！😊';
     return (<div className="speed-result"><div className="speed-result-stars">{stars}</div>
       <div className="timed-result-stats">
         <div className="timed-stat"><span className="timed-stat-num">{finalScore}</span><span className="timed-stat-label">答对</span></div>
