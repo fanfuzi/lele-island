@@ -226,22 +226,54 @@ const PET_EMOJIS = {
 const MOOD_EMOJI = { normal: '😊', happy: '🥰', sad: '😢', hungry: '😋', excited: '🤩', sleepy: '😴' };
 const ACC_EMOJI = { 11:'🎀',12:'🌺',13:'🧣',14:'👓',15:'👑',16:'⭐',17:'🎒',18:'📿',19:'🧙',20:'👟',21:'⌚',22:'🎀',23:'🦋',24:'💫',42:'🐱',43:'🎩',44:'🎧',45:'🕶️',46:'🔔',47:'🕊️',48:'✨',49:'🍳' };
 
-function PetSprite({ type, color, mood, celebrating, accessories, size, gaze, spriteClass }) {
-  var EMOJIS = { cat:'\u{1F431}', dog:'\u{1F436}', rabbit:'\u{1F430}', hamster:'\u{1F439}', fox:'\u{1F98A}', panda:'\u{1F43C}', bear:'\u{1F43B}', frog:'\u{1F438}', owl:'\u{1F989}', penguin:'\u{1F427}', unicorn:'\u{1F984}', turtle:'\u{1F422}' };
-  var MOODS = { normal:'\u{1F60A}', happy:'\u{1F970}', sad:'\u{1F622}', hungry:'\u{1F60B}', excited:'\u{1F929}', sleepy:'\u{1F634}' };
-  var [blink, setBlink] = React.useState(false);
-  React.useEffect(function() { var t=setInterval(function(){setBlink(true);setTimeout(function(){setBlink(false)},150)},3000+Math.random()*2000); return function(){clearInterval(t)}; }, []);
-  var em = EMOJIS[type] || '\u{1F431}';
-  var md = MOODS[mood] || '\u{1F60A}';
-  var big = (size||50) >= 70;
-  var bg = mood==='sad'?'#E3F2FD':mood==='happy'||mood==='excited'?'#FFE0B2':mood==='hungry'?'#FFF3E0':'#FFF8E1';
-  var pc = color || '#FFB5C2';
-  return React.createElement('div', {className:'pet-emoji-wrap'+(blink?' pet-blink':'')+(celebrating?' pet-celebrate':''),style:{width:size,height:size*1.15,position:'relative',display:'flex',alignItems:'center',justifyContent:'center'}},
-    React.createElement('div', {style:{position:'absolute',width:size*0.88,height:size*0.88,borderRadius:'50%',background:'radial-gradient(circle at 35% 30%,'+bg+','+pc+'33)',border:'3px solid '+pc+'44',boxShadow:'0 4px 20px '+pc+'33'}}),
-    big?React.createElement('span',{style:{position:'absolute',top:-3,right:-2,fontSize:16,zIndex:5,filter:'drop-shadow(0 1px 2px rgba(0,0,0,0.2))'}},md):null,
-    React.createElement('span',{style:{fontSize:big?48:30,lineHeight:1,zIndex:2,position:'relative',top:-2,filter:celebrating?'drop-shadow(0 0 10px #FFD700)':'none'}},em)
-  );
+function PetSprite({ type, color, mood, celebrating, accessories, size }) {
+  const [blink, setBlink] = useState(false);
+  useEffect(() => {
+    const t = setInterval(() => { setBlink(true); setTimeout(() => setBlink(false), 150); }, 3000 + Math.random() * 2000);
+    return () => clearInterval(t);
+  }, []);
 
+  const emojis = { cat:'🐱', dog:'🐶', rabbit:'🐰', hamster:'🐹', fox:'🦊', panda:'🐼', bear:'🐻', frog:'🐸', owl:'🦉', penguin:'🐧', unicorn:'🦄', turtle:'🐢' };
+  const moods = { normal:'😊', happy:'🥰', sad:'😢', hungry:'😋', excited:'🤩', sleepy:'😴' };
+  const accessories_emoji = { 11:'🎀',12:'🌺',13:'🧣',14:'👓',15:'👑',16:'⭐',17:'🎒',18:'📿',19:'🧙',20:'👟',21:'⌚',22:'🎀',23:'🦋',24:'💫',42:'🐱',43:'🎩',44:'🎧',45:'🕶️',46:'🔔',47:'🕊️',48:'✨',49:'🍳' };
+
+  const petEmoji = emojis[type] || '🐱';
+  const moodEmoji = moods[mood] || '😊';
+  const isLarge = (size || 50) >= 70;
+  const moodBg = mood === 'sad' ? '#E3F2FD' : (mood === 'happy' || mood === 'excited') ? '#FFE0B2' : mood === 'hungry' ? '#FFF3E0' : '#FFF8E1';
+  const petColor = color || '#FFB5C2';
+
+  const accList = (accessories || []).filter(a => { const i = shopItems.find(s => s.id === a); return i && i.type === 'clothing'; });
+  const headAcc = accList.filter(a => [11,12,15,22,42,43,44].includes(a));
+  const faceAcc = accList.filter(a => [14,45].includes(a));
+  const neckAcc = accList.filter(a => [13,16,18,23,46].includes(a));
+  const bodyAcc = accList.filter(a => [17,19,21,24,47,48,49].includes(a));
+  const footAcc = accList.filter(a => [20].includes(a));
+
+  return (
+    <div className={'pet-emoji-wrap' + (blink ? ' pet-blink' : '') + (celebrating ? ' pet-celebrate' : '')}
+      style={{ width: size, height: size * 1.15, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+
+      <div style={{ position: 'absolute', width: size * 0.88, height: size * 0.88, borderRadius: '50%',
+        background: 'radial-gradient(circle at 35% 30%,' + moodBg + ',' + petColor + '33)',
+        border: '3px solid ' + petColor + '44', boxShadow: '0 4px 20px ' + petColor + '33' }} />
+
+      {isLarge && <span style={{ position: 'absolute', top: -3, right: -2, fontSize: 16, zIndex: 5,
+        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }}>{moodEmoji}</span>}
+
+      <span style={{ fontSize: isLarge ? 48 : 30, lineHeight: 1, zIndex: 2, position: 'relative', top: -2,
+        filter: celebrating ? 'drop-shadow(0 0 10px #FFD700)' : 'none' }}>{petEmoji}</span>
+
+      {headAcc.map(id => <span key={id} style={{ position: 'absolute', top: isLarge?0:-3, left:'50%', transform:'translateX(-50%)', fontSize:isLarge?16:10, zIndex:3 }}>{accessories_emoji[id]||'🎀'}</span>)}
+      {faceAcc.map((id,i) => <span key={id} style={{ position:'absolute', top:'28%', [i===0?'left':'right']:isLarge?6:2, fontSize:isLarge?13:8, zIndex:3 }}>{accessories_emoji[id]||'👓'}</span>)}
+      {neckAcc.map(id => <span key={id} style={{ position:'absolute', bottom:isLarge?'20%':'16%', left:'50%', transform:'translateX(-50%)', fontSize:isLarge?14:9, zIndex:3 }}>{accessories_emoji[id]}</span>)}
+      {bodyAcc.map((id,i) => <span key={id} style={{ position:'absolute', bottom:isLarge?'8%':'4%', [i%2===0?'left':'right']:isLarge?6:2, fontSize:isLarge?13:8, zIndex:3 }}>{accessories_emoji[id]}</span>)}
+      {footAcc.length>0 && <div style={{ position:'absolute', bottom:0, left:'50%', transform:'translateX(-50%)', display:'flex', gap:4, fontSize:isLarge?12:7 }}>
+        {footAcc.map(id => <span key={id}>{accessories_emoji[id]||'👟'}</span>)}</div>}
+      {accList.includes(47) && <><span style={{position:'absolute', top:'35%', left:-10, fontSize:isLarge?18:11, opacity:0.7}}>🪽</span><span style={{position:'absolute', top:'35%', right:-10, fontSize:isLarge?18:11, opacity:0.7, transform:'scaleX(-1)'}}>🪽</span></>}
+      {accList.includes(48) && <span style={{position:'absolute', top:-8, left:'50%', transform:'translateX(-50%)', fontSize:22, opacity:0.7}}>✨</span>}
+    </div>
+  );
 }
 
 export default function PetCompanion({
