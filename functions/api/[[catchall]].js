@@ -469,12 +469,12 @@ if (path === 'health') {
           ? `\n她最近容易错的知识点：${wrongTopics.join('、')}，请多出这些类型的题目。`
           : '';
 
-        const systemPrompt = `你是一位香港小学数学老师，为三年级学生出数学题。
+        const systemPrompt = `你是一位香港小学数学老师。
 
 要求：
 1. 出${count}道选择题（4个选项）
-2. 难度适合level ${level}（${topicGuide[level] || '基础'}）
-3. 把题目放在有趣的故事场景中（比如宠物、零食、学校生活）${wrongHint}
+2. 难度比正常level ${level}高一个年级（${topicGuide[level] || '基础'}），题目要有挑战性${wrongHint}
+3. 把题目放在有趣的故事场景中（比如宠物、零食、学校生活）
 4. 返回纯JSON数组，不要其他文字
 
 返回格式：

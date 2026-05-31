@@ -126,11 +126,11 @@ function shuffleArray(arr) {
   const s = [...arr]; for (let i = s.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [s[i], s[j]] = [s[j], s[i]]; } return s;
 }
 
-export default function TimedMathGame({ level: defaultLevel = 1, questionCount = 12, onComplete, onAnswer }) {
+export default function TimedMathGame({ level: defaultLevel = 1, minLevel = 1, questionCount = 15, onComplete, onAnswer }) {
   const [phase, setPhase] = useState('setup');
-  const [level, setLevel] = useState(defaultLevel);
-  const [timeLimit, setTimeLimit] = useState(60);
-  const [perQuestionTime, setPerQuestionTime] = useState(15);
+  const [level, setLevel] = useState(Math.max(defaultLevel, minLevel));
+  const [timeLimit, setTimeLimit] = useState(minLevel >= 2 ? 120 : 90);
+  const [perQuestionTime, setPerQuestionTime] = useState(minLevel >= 2 ? 12 : 15);
   const [questions, setQuestions] = useState([]);
   const [current, setCurrent] = useState(0);
   const [score, setScore] = useState(0);
@@ -152,9 +152,10 @@ export default function TimedMathGame({ level: defaultLevel = 1, questionCount =
   }, [current, question?.id]);
 
   const handleDifficulty = (lvl) => {
+    if (lvl < minLevel) return;
     setLevel(lvl);
-    setTimeLimit(lvl >= 3 ? 120 : lvl >= 2 ? 90 : 60);
-    setPerQuestionTime(lvl >= 2 ? 25 : 20);
+    setTimeLimit(lvl >= 3 ? 150 : 120);
+    setPerQuestionTime(lvl >= 3 ? 10 : 12);
   };
 
   const startGame = () => {
@@ -221,7 +222,7 @@ export default function TimedMathGame({ level: defaultLevel = 1, questionCount =
     return (<div className="timed-setup"><h3 className="game-title">⏱️ 计时混合运算</h3><div className="timed-setup-card">
       <div className="timed-setup-row"><span>⏱️ 总时长</span><div className="timed-setup-inputs">{ [30, 60, 90, 120].map(t => (<button key={t} className={`timed-option-btn ${timeLimit === t ? 'active' : ''}`} onClick={() => setTimeLimit(t)}>{t}秒</button>)) }</div></div>
       <div className="timed-setup-row"><span>📝 每题限时</span><div className="timed-setup-inputs">{ [5, 10, 15, 20, 30].map(t => (<button key={t} className={`timed-option-btn ${perQuestionTime === t ? 'active' : ''}`} onClick={() => setPerQuestionTime(t)}>{t}秒</button>)) }</div></div>
-      <div className="timed-setup-row"><span>📊 难度</span><div className="timed-setup-inputs">{ [{id:1,label:'🌱 基础',desc:'加减混合'},{id:2,label:'🌿 进阶',desc:'加减乘混合'},{id:3,label:'🔥 挑战',desc:'加减乘除'}].map(l => (<button key={l.id} className={`timed-option-btn timed-option-wide ${level === l.id ? 'active' : ''}`} onClick={() => handleDifficulty(l.id)}>{l.label}<span className="timed-option-desc">{l.desc}</span></button>)) }</div></div>
+      <div className="timed-setup-row"><span>📊 难度</span><div className="timed-setup-inputs">{ [minLevel <= 1 ? {id:1,label:'🌱 基础',desc:'加减混合'} : null, {id:2,label:'🌿 进阶',desc:'加减乘混合'},{id:3,label:'🔥 挑战',desc:'加减乘除'}].filter(Boolean).map(l => (<button key={l.id} className={`timed-option-btn timed-option-wide ${level === l.id ? 'active' : ''}`} onClick={() => handleDifficulty(l.id)}>{l.label}<span className="timed-option-desc">{l.desc}</span></button>)) }</div></div>
       <button className="btn btn-primary timed-start-btn" onClick={startGame}>🚀 开始挑战！</button>
     </div></div>);
   }

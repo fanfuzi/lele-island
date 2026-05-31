@@ -199,7 +199,7 @@ export default function MathScreen({ onBack }) {
       }).filter(Boolean)
     )];
     try {
-      const result = await generateMathProblems(unlockedLevel, 5, wrongTopics);
+      const result = await generateMathProblems(Math.min(unlockedLevel + 1, 3), 6, wrongTopics);
       if (result && result.length > 0) {
         setAiProblems(result.map(p => ({
           id: p.id,
@@ -268,6 +268,9 @@ export default function MathScreen({ onBack }) {
   }
 
   if (gameMode === 'timed') {
+    // P3及以上（curriculumLevel >= 3）最低从进阶开始
+    const cl = getCurriculumLevel(state.userGrade);
+    const timedMinLevel = cl >= 3 ? 2 : 1;
     return (
       <div className="screen">
         <div className="screen-header">
@@ -277,8 +280,9 @@ export default function MathScreen({ onBack }) {
         </div>
         <PetCompanion mood={petMood} celebrating={petCelebrating} statusText={petStatus} interactive gazeTracking />
         <TimedMathGame
-          level={unlockedLevel}
-          questionCount={12}
+          level={Math.max(timedMinLevel, unlockedLevel)}
+          minLevel={timedMinLevel}
+          questionCount={15}
           onComplete={handleComplete}
           onAnswer={handleAnswer}
         />

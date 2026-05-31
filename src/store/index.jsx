@@ -342,10 +342,10 @@ function gameReducer(state, action) {
         newAchievements.push('level3');
       }
 
-      // 学习时长估算：每题约 30 秒
-      const studyGain = Math.max(1, Math.round(questionsDone * 0.5));
+      // 学习时长：按实际答题数算（每题1分钟），不能挂机等时间
+      const studyGain = Math.max(1, Math.round(questionsDone));
       const newDailyStudy = (state.dailyStudyMinutes || 0) + studyGain;
-      // 检查是否完成新一轮学习（每满25分钟解锁10分钟玩耍）
+      // 检查是否完成新一轮学习（每满25分钟解锁5分钟玩耍）
       const sessionLen = state.studySessionMinutes || 25;
       const playLen = state.playSessionMinutes || 10;
       const prevCycles = Math.floor((state.dailyStudyMinutes || 0) / sessionLen);
