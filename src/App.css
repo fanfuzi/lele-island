@@ -1283,6 +1283,22 @@ body {
 .pet-food-effect { font-size: 11px; color: var(--pink); font-weight: 700; }
 .pet-food-hint { font-size: 11px; color: var(--text-light); margin-top: 8px; text-align: center; }
 
+/* 玩耍倒计时 */
+.play-countdown {
+  text-align: center; padding: 8px 16px; margin: 0 16px 4px;
+  background: var(--green-light); border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 600; color: #2E7D32;
+  border: 2px solid var(--green);
+}
+.play-countdown-danger {
+  background: #FFF0F0; color: #D32F2F; border-color: #FFCDD2;
+  animation: countdownPulse 0.5s ease infinite alternate;
+}
+@keyframes countdownPulse {
+  from { opacity: 0.7; transform: scale(1); }
+  to { opacity: 1; transform: scale(1.02); }
+}
+
 .pet-actions { display: flex; gap: 8px; }
 .action-btn {
   flex: 1;

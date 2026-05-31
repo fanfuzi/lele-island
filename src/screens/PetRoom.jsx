@@ -85,6 +85,34 @@ export default function PetRoom({ onBack }) {
       </div>
     );
   }
+  // 玩耍倒计时（进入时自动开始，时间到强制退出）
+  const [playTimeLeft, setPlayTimeLeft] = useState(playMinutesAvailable * 60);
+
+  // 进入宠物屋时自动扣除可玩时间并开始倒计时
+  const enterTimeRef = useRef(Date.now());
+  useEffect(() => {
+    if (playMinutesAvailable <= 0) return;
+    enterTimeRef.current = Date.now();
+    const timer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - enterTimeRef.current) / 1000);
+      const remaining = Math.max(0, (playMinutesAvailable * 60) - elapsed);
+      setPlayTimeLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(timer);
+        // 时间到，强制退出宠物屋
+        onBack();
+      }
+    }, 1000);
+    return () => {
+      clearInterval(timer);
+      // 离开时消耗剩余玩耍时间
+      const usedMinutes = Math.ceil((Date.now() - enterTimeRef.current) / 60000);
+      if (usedMinutes > 0) {
+        dispatch({ type: 'USE_PET_PLAY_TIME', payload: usedMinutes });
+      }
+    };
+  }, []);
+
   const [showCustomize, setShowCustomize] = useState(false);
   const [showNameEdit, setShowNameEdit] = useState(false);
   const [showFurniture, setShowFurniture] = useState(false);
@@ -280,6 +308,18 @@ export default function PetRoom({ onBack }) {
           <span>🌟 {state.stars}</span>
         </div>
       </div>
+
+      {/* 玩耍倒计时显示 */}
+      {playTimeLeft > 0 && (
+        <div className={`play-countdown ${playTimeLeft <= 30 ? 'play-countdown-danger' : ''}`}>
+          ⏱️ 玩耍剩余 <b>{Math.floor(playTimeLeft / 60)}:{String(playTimeLeft % 60).padStart(2, '0')}</b>
+        </div>
+      )}
+      {playTimeLeft <= 0 && (
+        <div className="play-countdown play-countdown-danger">
+          ⏰ 时间到，正在退出...
+        </div>
+      )}
 
       {/* 房间展示区 */}
       <div className="pet-room-scene" ref={sceneRef}>
