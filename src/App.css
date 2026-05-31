@@ -2497,8 +2497,9 @@ body {
   top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.4);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding-top: 5vh;
   z-index: 100;
 }
 .settings-panel {
@@ -2506,6 +2507,8 @@ body {
   border-radius: 20px;
   padding: 28px 24px;
   max-width: 320px;
+  max-height: 85vh;
+  overflow-y: auto;
   width: 90%;
   box-shadow: 0 8px 32px rgba(0,0,0,0.15);
 }
