@@ -67,6 +67,68 @@ export default function AITutorScreen({ onBack, preset }) {
   const subjectInfo = SUBJECTS.find(s => s.id === subject) || SUBJECTS[0];
   const grade = state.userGrade || 'p3';
 
+  // === 会话持久化：刷新后恢复上次上传内容和分析结果 ===
+  const SESSION_KEY = 'ai-tutor-session';
+  const initialized = useRef(false);
+
+  // 保存当前会话到 localStorage（含图片预览，刷新后仍可见）
+  function saveSession() {
+    try {
+      const session = {
+        step, subject, items,
+        groups, overallAnalysis,
+        selectedGroups: [...selectedGroups],
+        examQuestions, examTitle,
+        currentArchiveId,
+        textInput: textInput || '',
+      };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    } catch (e) {
+      // localStorage 存不下图片时，去掉大图再试
+      if (e.name === 'QuotaExceededError' || e.code === 22) {
+        try {
+          const session = {
+            step, subject,
+            items: items.map(i => ({ ...i, preview: i.preview ? i.preview.substring(0, 500) : null })),
+            groups, overallAnalysis,
+            selectedGroups: [...selectedGroups],
+            examQuestions, examTitle,
+            currentArchiveId, textInput: textInput || '',
+          };
+          localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+        } catch { /* ignore */ }
+      }
+    }
+  }
+
+  // 组件挂载时恢复上次的会话
+  useEffect(() => {
+    if (initialized.current) return;
+    try {
+      const saved = localStorage.getItem(SESSION_KEY);
+      if (saved) {
+        const s = JSON.parse(saved);
+        if (s.step && s.step !== 'start' && s.step !== 'classifying' && s.step !== 'generating') {
+          setStep(s.step);
+          setSubject(s.subject || 'math');
+          if (s.items?.length > 0) setItems(s.items);
+          if (s.groups?.length > 0) setGroups(s.groups);
+          if (s.overallAnalysis) setOverallAnalysis(s.overallAnalysis);
+          if (s.selectedGroups?.length > 0) setSelectedGroups(new Set(s.selectedGroups));
+          if (s.examQuestions) { setExamQuestions(s.examQuestions); setExamTitle(s.examTitle || ''); }
+          if (s.currentArchiveId) setCurrentArchiveId(s.currentArchiveId);
+          if (s.textInput) setTextInput(s.textInput);
+        }
+      }
+    } catch (e) { console.warn('恢复会话失败:', e.message); }
+    initialized.current = true;
+  }, []);
+
+  // 关键数据变化时自动保存
+  useEffect(() => {
+    if (initialized.current) saveSession();
+  }, [step, subject, items, groups, overallAnalysis, selectedGroups]);
+
   // 预设处理
   const presetDone = useRef(false);
   useEffect(() => {
@@ -197,11 +259,12 @@ export default function AITutorScreen({ onBack, preset }) {
           mastery: state.mastery[subject] || {},
           wrongRecords: (state.wrongRecords[subject] || []).slice(-20),
         };
-        // 存档时去掉大字段，只保留文字摘要（图片数据用于AI看一次就够了，重新出题用groups即可）
+        // 存档时保留小缩略图，方便在存档列表中看到原图
         const lightItems = items.map(i => ({
           text: i.text || undefined,
           mimeType: i.mimeType || undefined,
-          hasImage: !!i.imageData,     // 只记录是否有图，不存数据
+          hasImage: !!i.imageData,
+          preview: i.imageData ? (i.preview || '').substring(0, 300) : undefined,
         }));
         const archivePayload = { subject, grade, title, createdAt: Date.now(), items: lightItems, groups: finalGroups, overallAnalysis: result?.overallAnalysis || null, weakSnapshot, practiced: false };
         dispatch({ type: 'SAVE_UPLOAD_ARCHIVE', payload: archivePayload });
@@ -366,6 +429,7 @@ export default function AITutorScreen({ onBack, preset }) {
     setExamQuestions(null);
     setExamTitle('');
     setError('');
+    try { localStorage.removeItem(SESSION_KEY); } catch {}
   }
 
   // ═══════════════════════════════════════════
@@ -470,6 +534,12 @@ export default function AITutorScreen({ onBack, preset }) {
                     </div>
                     <div className="archive-title">{a.title}</div>
                     {itemSummary && <div className="archive-summary">{itemSummary}</div>}
+                    {/* 存档中的缩略图 */}
+                    {a.items?.find(i => i.preview) && (
+                      <div className="archive-thumb-wrap">
+                        <img src={a.items.find(i => i.preview).preview} alt="" className="archive-thumb" />
+                      </div>
+                    )}
                     {weakTags.length > 0 && (
                       <div className="archive-weak-tags">
                         {weakTags.map(t => <span key={t} className="group-topic-tag">⚠️ {t}</span>)}

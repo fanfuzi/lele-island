@@ -3324,6 +3324,8 @@ body {
 
 .archive-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
 .archive-summary { font-size: 12px; color: var(--text-light); margin-bottom: 6px; }
+.archive-thumb-wrap { margin-bottom: 8px; border-radius: 8px; overflow: hidden; border: 1px solid #f0e8f0; display: inline-block; }
+.archive-thumb { max-width: 120px; max-height: 80px; display: block; object-fit: cover; }
 .archive-weak-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
 .archive-actions { display: flex; gap: 8px; margin-top: 8px; }
 
