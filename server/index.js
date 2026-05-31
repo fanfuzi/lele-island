@@ -364,6 +364,48 @@ async function askDeepseek(systemPrompt, userMessage, maxTokens) {
   return data.choices?.[0]?.message?.content || null;
 }
 
+/**
+ * 健壮 JSON 提取 — 处理 AI 输出的各种常见格式问题
+ * 支持：Markdown 代码块、JS 注释、尾部逗号、单引号、无引号键名、前后多余文字
+ */
+function extractJSON(text) {
+  if (!text || typeof text !== 'string') return null;
+  let s = text.trim().replace(/\`\`\`(?:json)?\s*([\s\S]*?)\`\`\`/g, '$1').replace(/\/\/.*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  
+  const findRoot = (str, sC, eC) => {
+    const start = str.indexOf(sC);
+    if (start < 0) return null;
+    let d = 0, inStr = false, esc = false;
+    for (let i = start; i < str.length; i++) {
+      const ch = str[i];
+      if (esc) { esc = false; continue; }
+      if (ch === '\\' && inStr) { esc = true; continue; }
+      if (ch === '"' && !esc) inStr = !inStr;
+      if (inStr) continue;
+      if (ch === sC) d++;
+      if (ch === eC) { d--; if (d === 0) return str.slice(start, i + 1); }
+    }
+    return null;
+  };
+
+  let js = findRoot(s, '{', '}') || findRoot(s, '[', ']');
+  if (!js) return null;
+  
+  const attempts = [
+    s => JSON.parse(s),
+    s => JSON.parse(s.replace(/\b(True|False|NULL|Undefined)\b/g, m => m.toLowerCase())),
+    s => JSON.parse(s.replace(/,(\s*[}\]])/g, '$1')),
+    s => JSON.parse(s.replace(/'/g, '"')),
+    s => JSON.parse(s.replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3')),
+    s => { s = s.replace(/\b(True|False|NULL|Undefined)\b/g, m => m.toLowerCase()).replace(/,(\s*[}\]])/g, '$1').replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3'); const p = s.split('"'); for (let i = 0; i < p.length; i += 2) p[i] = p[i].replace(/'/g, '"'); return JSON.parse(p.join('"')); },
+    s => { const st = s.search(/[\[{]/); if (st > 0) s = s.slice(st); return JSON.parse(s); },
+  ];
+  
+  js = js.replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
+  for (const fn of attempts) { try { return fn(js); } catch {} }
+  return null;
+}
+
 // ===== 健康检查 =====
 app.get('/api/health', (req, res) => {
   res.json({
@@ -436,13 +478,9 @@ app.post('/api/generate-math', async (req, res) => {
 
   const reply = await askAI(systemPrompt, `请出${count}道level ${level}的数学选择题`, 1000);
   if (!reply) return res.json({ problems: null });
-
   try {
-    const jsonMatch = reply.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      const problems = JSON.parse(jsonMatch[0]);
-      return res.json({ problems });
-    }
+    const parsed = extractJSON(reply);
+    if (parsed && Array.isArray(parsed)) return res.json({ problems: parsed });
   } catch (e) {
     console.error('Parse error:', e.message);
   }
@@ -516,11 +554,7 @@ app.post('/api/analyze-mistakes', async (req, res) => {
   if (!reply) return res.json(null);
 
   try {
-    const jsonMatch = reply.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const result = JSON.parse(jsonMatch[0]);
-      return res.json(result);
-    }
+    const parsed = extractJSON(reply); if (parsed) return res.json(parsed);
   } catch (e) {
     console.error('Parse error:', e.message);
   }
@@ -558,11 +592,7 @@ app.post('/api/vary-question', async (req, res) => {
   if (!reply) return res.json({ variations: [] });
 
   try {
-    const jsonMatch = reply.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      const variations = JSON.parse(jsonMatch[0]);
-      return res.json({ variations });
-    }
+    const parsed = extractJSON(reply); if (parsed && Array.isArray(parsed)) return res.json({ variations: parsed });
   } catch (e) {
     console.error('Parse error:', e.message);
   }
@@ -596,11 +626,8 @@ app.post('/api/generate-template', async (req, res) => {
   if (!reply) return res.json({ templates: [] });
 
   try {
-    const jsonMatch = reply.match(/\[[\s\S]*\]/s);
-    if (jsonMatch) {
-      const templates = JSON.parse(jsonMatch[0]);
-      // 补全字段
-      const enriched = templates.map((t, i) => ({
+    const parsed = extractJSON(reply); if (parsed && Array.isArray(parsed)) {
+      const enriched = parsed.map((t, i) => ({
         ...t,
         grade,
         genre: genre || 'computation',
@@ -699,11 +726,7 @@ ${textContent || '（见上传图片）'}
   if (!reply) return res.json(null);
 
   try {
-    const jsonMatch = reply.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const result = JSON.parse(jsonMatch[0]);
-      return res.json(result);
-    }
+    const parsed = extractJSON(reply); if (parsed) return res.json(parsed);
   } catch (e) {
     console.error('Diagnose parse error:', e.message);
   }
@@ -773,11 +796,7 @@ ${textbookContent || '（见上传图片）'}
   if (!reply) return res.json({ questions: null });
 
   try {
-    const jsonMatch = reply.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const result = JSON.parse(jsonMatch[0]);
-      return res.json(result);
-    }
+    const parsed = extractJSON(reply); if (parsed) return res.json(parsed);
   } catch (e) {
     console.error('Review parse error:', e.message);
   }
@@ -857,11 +876,7 @@ ${itemsText}
   if (!reply) return res.json({ groups: null });
 
   try {
-    const jsonMatch = reply.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const result = JSON.parse(jsonMatch[0]);
-      return res.json(result);
-    }
+    const parsed = extractJSON(reply); if (parsed) return res.json(parsed);
   } catch (e) {
     console.error('Classify parse error:', e.message);
   }
@@ -942,11 +957,7 @@ ${groupsText}
   if (!reply) return res.json({ questions: null });
 
   try {
-    const jsonMatch = reply.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const result = JSON.parse(jsonMatch[0]);
-      return res.json(result);
-    }
+    const parsed = extractJSON(reply); if (parsed) return res.json(parsed);
   } catch (e) {
     console.error('Exam parse error:', e.message);
   }

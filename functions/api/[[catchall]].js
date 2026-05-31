@@ -115,7 +115,42 @@ export async function onRequest(context) {
   const { apiKey, baseUrl, defaultModel, isSiliconflow } = aiConfig;
   const db = env.DB; // D1 binding，没有则降级
 
-  if (path === 'health') {
+  
+
+function extractJSON(text) {
+  if (!text || typeof text !== 'string') return null;
+  let s = text.trim().replace(/\`\`\`(?:json)?\s*([\s\S]*?)\`\`\`/g, '$1').replace(/\/\/.*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  const findRoot = (str, sC, eC) => {
+    const start = str.indexOf(sC); if (start < 0) return null;
+    let d = 0, inStr = false, esc = false;
+    for (let i = start; i < str.length; i++) {
+      const ch = str[i];
+      if (esc) { esc = false; continue; }
+      if (ch === '\\' && inStr) { esc = true; continue; }
+      if (ch === '"' && !esc) inStr = !inStr;
+      if (inStr) continue;
+      if (ch === sC) d++;
+      if (ch === eC) { d--; if (d === 0) return str.slice(start, i + 1); }
+    }
+    return null;
+  };
+  let js = findRoot(s, '{', '}') || findRoot(s, '[', ']');
+  if (!js) return null;
+  const attempts = [
+    s => JSON.parse(s),
+    s => JSON.parse(s.replace(/\b(True|False|NULL|Undefined)\b/g, m => m.toLowerCase())),
+    s => JSON.parse(s.replace(/,(\s*[}\]])/g, '$1')),
+    s => JSON.parse(s.replace(/'/g, '"')),
+    s => JSON.parse(s.replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3')),
+    s => { s = s.replace(/\b(True|False|NULL)\b/g,m=>m.toLowerCase()).replace(/,(\s*[}\]])/g,'$1').replace(/([{,]\s*)([a-zA-Z_]\w*)(\s*:)/g,'$1"$2"$3'); const p=s.split('"'); for(let i=0;i<p.length;i+=2) p[i]=p[i].replace(/'/g,'"'); return JSON.parse(p.join('"')); },
+    s => { const st = s.search(/[[{]/); if (st>0) s = s.slice(st); return JSON.parse(s); },
+  ];
+  js = js.replace(/\\(?!["\\\/bfnrtu])/g, '\\\\');
+  for (const fn of attempts) { try { return fn(js); } catch {} }
+  return null;
+}
+
+if (path === 'health') {
     return json({ status:'ok', ai:true, provider:'siliconflow', model:'Qwen/Qwen3-VL-8B-Instruct', db: !!env.DB });
   }
 
@@ -455,8 +490,8 @@ export async function onRequest(context) {
 
         const reply = await askAI(systemPrompt, `请出${count}道level ${level}的数学选择题`, apiKey, baseUrl, defaultModel, 1000);
         if (!reply) return json({ problems: null });
-        const jsonMatch = reply.match(/\[[\s\S]*\]/);
-        if (jsonMatch) return json({ problems: JSON.parse(jsonMatch[0]) });
+        const parsed = extractJSON(reply);
+        if (parsed && Array.isArray(parsed)) return json({ problems: parsed });
         return json({ problems: null });
       }
 
@@ -508,8 +543,7 @@ export async function onRequest(context) {
           apiKey, baseUrl, defaultModel, 500,
         );
         if (!reply) return json(null);
-        const m = reply.match(/\{[\s\S]*\}/);
-        return json(m ? JSON.parse(m[0]) : null);
+        return json(m ? extractJSON(reply) : null);
       }
 
       case 'vary-question': {
@@ -519,8 +553,7 @@ export async function onRequest(context) {
 格式：[{"id":"VAR-1","question":"...","answer":"...","options":[...],"variationType":"数值变体|场景变体"}]`;
         const reply = await askAI(systemPrompt, `年级：${grade}，科目：${subject}\n种子题目：${JSON.stringify(question)}\n请生成${count}道变体题。`, apiKey, baseUrl, defaultModel, 1000);
         if (!reply) return json({ variations: [] });
-        const m = reply.match(/\[[\s\S]*\]/);
-        return json({ variations: m ? JSON.parse(m[0]) : [] });
+        return json({ variations: m ? extractJSON(reply) : [] });
       }
 
       case 'generate-template': {
@@ -529,8 +562,7 @@ export async function onRequest(context) {
         const systemPrompt = `你是香港中小学数学课程专家，为${gradeNames[grade] || grade}设计数学题目模板。每个模板包含 pattern/variables/answer/distractors。返回纯JSON数组。`;
         const reply = await askAI(systemPrompt, `请为${gradeNames[grade] || grade}设计${count}个关于"${topic}"的${genre === 'word-problem' ? '应用题' : '计算题'}模板。`, apiKey, baseUrl, defaultModel, 1200);
         if (!reply) return json({ templates: [] });
-        const m = reply.match(/\[[\s\S]*\]/s);
-        return json({ templates: m ? JSON.parse(m[0]) : [] });
+        return json({ templates: m ? extractJSON(reply) : [] });
       }
 
       case 'tutor/homework-diagnose': {
@@ -563,8 +595,7 @@ export async function onRequest(context) {
         const msg = imageData ? { text: userMsgText, image: imageData, mimeType: mimeType || 'image/png' } : userMsgText;
         const reply = await askAI(systemPrompt, msg, apiKey, baseUrl, defaultModel, 1200);
         if (!reply) return json(null);
-        const m = reply.match(/\{[\s\S]*\}/);
-        return json(m ? JSON.parse(m[0]) : null);
+        return json(m ? extractJSON(reply) : null);
       }
 
       case 'generate-review': {
@@ -592,8 +623,7 @@ export async function onRequest(context) {
         const msg = imageData ? { text: userMsgText, image: imageData, mimeType: mimeType || 'image/png' } : userMsgText;
         const reply = await askAI(systemPrompt, msg, apiKey, baseUrl, defaultModel, 1500);
         if (!reply) return json({ questions: null });
-        const m = reply.match(/\{[\s\S]*\}/);
-        return json(m ? JSON.parse(m[0]) : { questions: null });
+        return json(m ? extractJSON(reply) : { questions: null });
       }
 
       case 'ocr': {
@@ -663,9 +693,7 @@ ${itemsText}
 
         const reply = await askAI(systemPrompt, msg, apiKey, baseUrl, defaultModel, 1200);
         if (!reply) return json({ groups: null, error: 'AI 无响应，请检查 API Key 是否有效' });
-        const jm = reply.match(/\{[\s\S]*\}/);
-        if (jm) return json(JSON.parse(jm[0]));
-        return json({ groups: null, error: `AI 返回内容无法解析: ${reply.slice(0, 200)}` });
+                return json({ groups: null, error: `AI 返回内容无法解析: ${reply.slice(0, 200)}` });
       }
 
       case 'tutor/generate-exam': {
@@ -729,8 +757,7 @@ ${groupsText}
 
         const reply = await askAI(systemPrompt, msg, apiKey, baseUrl, defaultModel, 2000);
         if (!reply) return json({ questions: null });
-        const jm = reply.match(/\{[\s\S]*\}/);
-        return json(jm ? JSON.parse(jm[0]) : { questions: null });
+        return json(jm ? extractJSON(reply) : { questions: null });
       }
 
       default:
